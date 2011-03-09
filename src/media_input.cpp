@@ -32,8 +32,8 @@
 
 
 media_input::media_input() :
-    _active_video_stream(-1), _active_audio_stream(-1),
-    _have_active_video_read(false), _have_active_audio_read(false), _last_audio_data_size(0),
+    _active_video_stream(-1), _active_audio_stream(-1), _active_subtitles_stream(-1),
+    _have_active_video_read(false), _have_active_audio_read(false), _have_active_subtitles_read(false), _last_audio_data_size(0),
     _initial_skip(0), _duration(-1)
 {
 }
@@ -72,6 +72,23 @@ void media_input::get_audio_stream(int stream, int &media_object, int &media_obj
         }
         media_object = i;
         media_object_audio_stream = stream;
+        break;
+    }
+}
+
+void media_input::get_subtitles_stream(int stream, int &media_object, int &media_object_subtitles_stream) const
+{
+    assert(stream < subtitles_streams());
+    
+    for (size_t i = 0; i < _media_objects.size(); i++)
+    {
+        if (_media_objects[i].subtitles_streams() < stream + 1)
+        {
+            stream -= _media_objects[i].subtitles_streams();
+            continue;
+        }
+        media_object = i;
+        media_object_subtitles_stream = stream;
         break;
     }
 }
@@ -145,6 +162,16 @@ void media_input::open(const std::vector<std::string> &urls)
             std::string pfx2 = (_media_objects[i].audio_streams() == 1 ? "" : str::from(j + 1) + " - ");
             _audio_stream_names.push_back(pfx + pfx2
                     + _media_objects[i].audio_blob_template(j).format_info());
+        }
+    }
+    for (size_t i = 0; i < _media_objects.size(); i++)
+    {
+        std::string pfx = (_media_objects.size() == 1 ? "" : str::from(i + 1) + " - ");
+        for (int j = 0; j < _media_objects[i].subtitles_streams(); j++)
+        {
+            std::string pfx2 = (_media_objects[i].subtitles_streams() == 1 ? "" : str::from(j + 1) + " - ");
+            _subtitles_stream_names.push_back(pfx + pfx2
+            + _media_objects[i].subtitles_list_template(j).format_info());
         }
     }
 
@@ -226,6 +253,16 @@ void media_input::open(const std::vector<std::string> &urls)
         _audio_blob = _media_objects[o].audio_blob_template(s);
         select_audio_stream(_active_audio_stream);
     }
+    
+    // Set active subtitles stream
+    _active_subtitles_stream = (subtitles_streams() > 0 ? 0 : -1);
+    if (_active_subtitles_stream >= 0)
+    {
+        int o, s;
+        get_subtitles_stream(_active_subtitles_stream, o, s);
+        _subtitles_list = _media_objects[o].subtitles_list_template(s);
+        select_subtitles_stream(_active_subtitles_stream);
+    }
 
     // Print summary
     msg::inf("Input:");
@@ -250,6 +287,17 @@ void media_input::open(const std::vector<std::string> &urls)
     if (audio_streams() == 0)
     {
         msg::inf("    No audio.");
+    }
+    for (int i = 0; i < subtitles_streams(); i++)
+    {
+        int o, s;
+        get_subtitles_stream(i, o, s);
+        msg::inf("    Subtitles %s: %s", subtitles_stream_name(i).c_str(), 
+                 _media_objects[o].subtitles_list_template(s).format_name().c_str());
+    }
+    if (subtitles_streams() == 0)
+    {
+        msg::inf("    No subtitles.");
     }
     msg::inf("    Duration: %g seconds", duration() / 1e6f);
     if (video_streams() > 0)
@@ -326,6 +374,12 @@ const audio_blob &media_input::audio_blob_template() const
 {
     assert(_active_audio_stream >= 0);
     return _audio_blob;
+}
+
+const subtitles_list &media_input::subtitles_blob_template() const
+{
+    assert(_active_subtitles_stream >= 0);
+    return _subtitles_list;
 }
 
 bool media_input::stereo_layout_is_supported(video_frame::stereo_layout_t layout, bool) const
@@ -445,6 +499,30 @@ void media_input::select_audio_stream(int audio_stream)
     }
 }
 
+void media_input::select_subtitles_stream(int subtitles_stream)
+{
+    if (_have_active_video_read)
+    {
+        (void)finish_video_frame_read();
+    }
+    if (_have_active_audio_read)
+    {
+        (void)finish_audio_blob_read();
+    }
+    assert(subtitles_stream >= 0);
+    assert(subtitles_stream < subtitles_streams());
+    _active_subtitles_stream = subtitles_stream;
+    int o, s;
+    get_subtitles_stream(_active_subtitles_stream, o, s);
+    for (size_t i = 0; i < _media_objects.size(); i++)
+    {
+        for (int j = 0; j < _media_objects[i].subtitles_streams(); j++)
+        {
+            _media_objects[i].subtitles_stream_set_active(j, (i == static_cast<size_t>(o) && j == s));
+        }
+    }
+}
+
 void media_input::start_video_frame_read()
 {
     assert(_active_video_stream >= 0);
@@ -513,6 +591,22 @@ video_frame media_input::finish_video_frame_read()
             frame.presentation_time = f.presentation_time;
         }
     }
+    
+    // Assign subtitle
+    if(_active_subtitles_stream >= 0)
+    {
+        int o, s;
+        get_subtitles_stream(_active_subtitles_stream, o, s);
+        _subtitles_list = _media_objects[o].finish_subtitles_list_read(s);
+
+        if(frame.presentation_time >= _subtitles_list.presentation_time /*&& 
+            frame.presentation_time <= _subtitles_list.presentation_time_end*/
+        )
+            frame.subtitle_list = &_subtitles_list;
+        else
+            frame.subtitle_list = NULL;
+    }
+        
     _have_active_video_read = false;
     return frame;
 }

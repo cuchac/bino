@@ -39,6 +39,7 @@ private:
     // from the given streams
     void set_video_frame_template(int video_stream);
     void set_audio_blob_template(int audio_stream);
+	 void set_subtitles_list_template(int subtitles_stream);
 
     // The threaded implementation can access private members
     friend class read_thread;
@@ -68,10 +69,12 @@ public:
     /* Get the number of video and audio streams in the file. */
     int video_streams() const;
     int audio_streams() const;
+	 int subtitles_streams() const;
 
     /* Activate a video or audio stream for usage. Inactive streams will not be accessible. */
     void video_stream_set_active(int video_stream, bool active);
     void audio_stream_set_active(int audio_stream, bool active);
+	 void subtitles_stream_set_active(int subtitles_stream, bool active);
 
     /* Get information about video streams. */
     // Return a video frame with all properties filled in (but without any data).
@@ -90,6 +93,11 @@ public:
     const audio_blob &audio_blob_template(int audio_stream) const;
     // Audio stream duration in microseconds.
     int64_t audio_duration(int video_stream) const;
+    
+    /* Get information about subtitles streams. */
+    // Return an subtitles blob with all properties filled in (but without any data).
+    // Note that this is only a hint; the properties of actual subtitles blobs may differ!
+    const subtitles_list &subtitles_list_template(int subtitles_stream) const;
 
     /*
      * Access video and audio data
@@ -106,6 +114,12 @@ public:
     /* Wait for the audio data reading to finish, and return the blob.
      * An invalid blob means that EOF was reached. */
     audio_blob finish_audio_blob_read(int audio_stream);
+    
+    /* Start to read the given amount of subtitles data asynchronously (in a separate thread). */
+    void start_subtitles_list_read(int subtitles_stream, size_t size);
+    /* Wait for the subtitles data reading to finish, and return the subtitles_list.
+     * An invalid subtitles_list means that EOF was reached. */
+    subtitles_list finish_subtitles_list_read(int subtitles_stream);
 
     /* Return the last position in microseconds, of the last packet that was read in any
      * stream. If the position is unkown, the minimum possible value is returned. */

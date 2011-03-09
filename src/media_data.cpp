@@ -44,7 +44,8 @@ video_frame::video_frame() :
     chroma_location(center),
     stereo_layout(mono),
     stereo_layout_swap(false),
-    presentation_time(std::numeric_limits<int64_t>::min())
+    presentation_time(std::numeric_limits<int64_t>::min()),
+    subtitle_list(NULL)
 {
     for (int i = 0; i < 2; i++)
     {
@@ -424,6 +425,33 @@ int audio_blob::sample_bits() const
         break;
     }
     return bits;
+}
+
+std::string subtitles_list::format_info() const
+{
+    return format_name();
+}
+
+std::string subtitles_list::format_name() const
+{
+    const char *format_name;
+    switch (format)
+    {
+        case text:
+            format_name = "text";
+            break;
+        case image:
+            format_name = "image";
+            break;
+        case srt:
+            format_name = "srt";
+            break;
+    }
+    return str::asprintf("%s, %s", lang, format_name);
+}
+
+subtitles_list::subtitles_list():format(text)
+{
 }
 
 parameters::parameters() :

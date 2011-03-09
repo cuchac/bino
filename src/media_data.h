@@ -26,6 +26,7 @@
 
 #include "s11n.h"
 
+class subtitles_list;
 
 class video_frame
 {
@@ -90,6 +91,7 @@ public:
     // so it does not free them on destruction.
     void *data[2][3];                   // Data pointer for 1-3 planes in 1-2 views. NULL if unused.
     size_t line_size[2][3];             // Line size for 1-3 planes in 1-2 views. 0 if unused.
+    subtitles_list *subtitle_list;     // Associated subtitles with frame
 
     int64_t presentation_time;          // Presentation timestamp
 
@@ -155,6 +157,33 @@ public:
 
     // Return the number of bits the sample format
     int sample_bits() const;
+};
+
+class subtitles_list
+{
+public:
+    // Sample format
+    typedef enum
+    {
+        text,
+        srt,              // subtitles stored as vector of strings
+        image,            // subtitles stored as stream of images
+    } format_t;
+	 
+	 format_t format;      // Subtitles format
+    char lang[4];         // Subtitles language
+	 
+	 std::vector<std::string>	data;
+    std::string currentString;
+    int64_t presentation_time;          // Presentation timestamp
+    int64_t presentation_time_end;
+    
+    // Return a string describing the format
+    std::string format_info() const;    // Human readable information
+    std::string format_name() const;    // Short code
+
+    // Constructor
+    subtitles_list();
 };
 
 class parameters : public s11n

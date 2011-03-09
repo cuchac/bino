@@ -37,12 +37,15 @@ private:
 
     std::vector<std::string> _video_stream_names;       // Descriptions of available video streams
     std::vector<std::string> _audio_stream_names;       // Descriptions of available audio streams
+    std::vector<std::string> _subtitles_stream_names;   // Descriptions of available subtitles streams
 
     bool _supports_stereo_layout_separate;      // Does this input support the stereo layout 'separate_streams'?
     int _active_video_stream;                   // The video stream that is currently active.
     int _active_audio_stream;                   // The audio stream that is currently active.
+    int _active_subtitles_stream;                   // The audio stream that is currently active.
     bool _have_active_video_read;               // Whether a video frame read was started.
     bool _have_active_audio_read;               // Whether a audio blob read was started.
+    bool _have_active_subtitles_read;               // Whether a audio blob read was started.
     size_t _last_audio_data_size;               // Size of last audio blob read
 
     int64_t _initial_skip;                      // Initial portion of input to skip, in microseconds.
@@ -50,10 +53,12 @@ private:
 
     video_frame _video_frame;                   // Video frame template for currently active video stream.
     audio_blob _audio_blob;                     // Audio blob template for currently active audio stream.
+    subtitles_list _subtitles_list;             // Subtitles list template for currently active subtitles stream.
 
     // Find the media object and its stream index for a given video or audio stream number.
     void get_video_stream(int stream, int &media_object, int &media_object_video_stream) const;
     void get_audio_stream(int stream, int &media_object, int &media_object_audio_stream) const;
+    void get_subtitles_stream(int stream, int &media_object, int &media_object_subtitles_stream) const;
 
 public:
 
@@ -88,6 +93,12 @@ public:
     {
         return _audio_stream_names.size();
     }
+    
+    // Number of subtitles streams in this input.
+    int subtitles_streams() const
+    {
+        return _subtitles_stream_names.size();
+    }
 
     // Name of the given video stream.
     const std::string &video_stream_name(int video_stream) const
@@ -99,6 +110,12 @@ public:
     const std::string &audio_stream_name(int audio_stream) const
     {
         return _audio_stream_names[audio_stream];
+    }
+    
+    // Name of the given subtitles stream.
+    const std::string &subtitles_stream_name(int subtitles_stream) const
+    {
+        return _subtitles_stream_names[subtitles_stream];
     }
 
     // Initial portion of the input to skip.
@@ -125,6 +142,10 @@ public:
     // Information about the active audio stream, in the form of an audio blob
     // that contains all properties but no actual data.
     const audio_blob &audio_blob_template() const;
+    
+    // Information about the active subtitles stream, in the form of an subtitles blob
+    // that contains all properties but no actual data.
+    const subtitles_list &subtitles_blob_template() const;
 
     /*
      * Access video and audio data
@@ -141,6 +162,11 @@ public:
         return _active_audio_stream;
     }
     void select_audio_stream(int audio_stream);
+    int selected_subtitles_stream() const
+    {
+        return _active_subtitles_stream;
+    }
+    void select_subtitles_stream(int subtitles_stream);
 
     /* Check whether a stereo layout is supported by this input. */
     bool stereo_layout_is_supported(video_frame::stereo_layout_t layout, bool swap) const;

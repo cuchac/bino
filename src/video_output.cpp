@@ -37,6 +37,9 @@
 #include "video_output_render.fs.glsl.h"
 #include "xgl.h"
 
+#ifdef HAVE_LIBFTGL
+#include <FTGL/ftgl.h>
+#endif
 
 /* Video output overview:
  *
@@ -80,6 +83,13 @@
  * interpolation, too.
  */
 
+
+
+// Create a pixmap font from a TrueType file.
+FTGLPixmapFont font("/usr/share/fonts/corefonts/arial.ttf");
+FTSimpleLayout fontLayout;
+
+
 video_output::video_output(bool receive_notifications) :
     controller(receive_notifications),
     _initialized(false)
@@ -104,6 +114,12 @@ video_output::video_output(bool receive_notifications) :
     _color_fbo = 0;
     _render_prg = 0;
     _render_mask_tex = 0;
+    // Set the font size and render a small text.
+    font.FaceSize(20);
+    fontLayout.SetFont(&font);
+    fontLayout.SetAlignment(FTGL::ALIGN_CENTER);
+    fontLayout.SetLineLength(100);
+    fontLayout.SetLineSpacing(0.7);
 }
 
 video_output::~video_output()
@@ -174,6 +190,7 @@ void video_output::set_suitable_size(int w, int h, float ar, parameters::stereo_
         height = max_height;
     }
     trigger_resize(width, height);
+    fontLayout.SetLineLength(width);
 }
 
 void video_output::input_init(int index, const video_frame &frame)
@@ -313,6 +330,9 @@ void video_output::prepare_next_frame(const video_frame &frame)
         input_init(index, frame);
         _frame[index] = frame;
     }
+    //Make sure subtitles are copied
+    _frame[index].subtitle_list = frame.subtitle_list;
+    
     int bytes_per_pixel = (frame.layout == video_frame::bgra32 ? 4 : 1);
     GLenum format = (frame.layout == video_frame::bgra32 ? GL_BGRA : GL_LUMINANCE);
     GLenum type = (frame.layout == video_frame::bgra32 ? GL_UNSIGNED_INT_8_8_8_8_REV : GL_UNSIGNED_BYTE);
@@ -857,6 +877,20 @@ void video_output::display_current_frame(bool mono_right_instead_of_left,
         draw_quad(-1.0f, -1.0f, 2.0f, 1.0f);
     }
     assert(xgl::CheckError(HERE));
+    
+    // If something went wrong, bail out.
+    if(font.Error())
+    {
+        msg::err(str::from("Error in FTGL library!!!"));
+        return;
+    }
+
+    if(frame.subtitle_list)
+    {
+        FTBBox box = fontLayout.BBox(frame.subtitle_list->currentString.c_str());
+        glWindowPos2f(0, box.Upper().Y()-box.Lower().Y());
+        fontLayout.Render(frame.subtitle_list->currentString.c_str());
+    }
 }
 
 void video_output::clear()
