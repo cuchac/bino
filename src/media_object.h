@@ -97,7 +97,7 @@ public:
     /* Get information about subtitles streams. */
     // Return an subtitles blob with all properties filled in (but without any data).
     // Note that this is only a hint; the properties of actual subtitles blobs may differ!
-    const subtitles_list &subtitles_list_template(int subtitles_stream) const;
+    subtitles_list &subtitles_list_template(int subtitles_stream) const;
 
     /*
      * Access video and audio data
@@ -119,7 +119,7 @@ public:
     void start_subtitles_list_read(int subtitles_stream, size_t size);
     /* Wait for the subtitles data reading to finish, and return the subtitles_list.
      * An invalid subtitles_list means that EOF was reached. */
-    subtitles_list finish_subtitles_list_read(int subtitles_stream);
+    subtitles_list* finish_subtitles_list_read(int subtitles_stream);
 
     /* Return the last position in microseconds, of the last packet that was read in any
      * stream. If the position is unkown, the minimum possible value is returned. */

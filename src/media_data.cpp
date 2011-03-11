@@ -463,11 +463,12 @@ subtitles_list::subtitle* subtitles_list::get_current_subtitle(int64_t time)
    {
       case text:
       {
-         if(time > current->start_time && time < current->end_time)
+         if(time > current->start_time && time < current->end_time && time < data[1].start_time)
             return &*current;
          if(time > data[1].start_time && time < data[1].end_time)
          {
             data[0] = data[1];
+            current = data.begin();
             return &*current;
          }
          return NULL;

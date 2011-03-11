@@ -44,7 +44,7 @@ public:
       int64_t start_time;          // Presentation timestamp
       int64_t end_time;
       
-      subtitle(const char * t = ""):text(t){};
+      subtitle(const char * t = ""):text(t),start_time(0),end_time(0){};
    };
    
    format_t format;      // Subtitles format

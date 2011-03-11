@@ -976,7 +976,7 @@ int64_t media_object::audio_duration(int index) const
     }
 }
 
-const subtitles_list& media_object::subtitles_list_template(int subtitles_stream) const
+subtitles_list& media_object::subtitles_list_template(int subtitles_stream) const
 {
     assert(subtitles_stream >= 0);
     assert(subtitles_stream < subtitles_streams());
@@ -1018,7 +1018,8 @@ void read_thread::run()
         {
             if (_ffmpeg->format_ctx->streams[_ffmpeg->subtitles_streams[i]]->discard == AVDISCARD_DEFAULT)
             {
-                need_another_packet = true;
+                if(_ffmpeg->video_streams.size() + _ffmpeg->audio_streams.size() == 0) // Read whole file if using external file
+                    need_another_packet = true;
             }
         }
         if (!need_another_packet)
@@ -1101,27 +1102,33 @@ void read_thread::run()
         {
             if (packet.stream_index == _ffmpeg->subtitles_streams[i])
             {
-               if(_ffmpeg->subtitles_list_templates[i].format == subtitles_list::ssa)
-               {
-                  AVSubtitle subtitle;
-                  int ptr;
-                  avcodec_decode_subtitle2(_ffmpeg->subtitles_codec_ctxs[i], &subtitle, &ptr, &packet);
-                  _ffmpeg->subtitles_list_templates[i].data.push_back(subtitles_list::extract_text_from_ssa(subtitle.rects[0]->ass));
-                  _ffmpeg->subtitles_list_templates[i].current = _ffmpeg->subtitles_list_templates[i].data.end()-1;
-                  for(unsigned int j = 1; j < subtitle.num_rects; j++)
-                     _ffmpeg->subtitles_list_templates[i].current->text += std::string("\n") + subtitles_list::extract_text_from_ssa(subtitle.rects[j]->ass);
-               }
-               else
-                  _ffmpeg->subtitles_list_templates[i].current->text = (char*)packet.data;
-               
-               _ffmpeg->subtitles_list_templates[i].current->start_time = packet.dts * 1000000
-                  * _ffmpeg->format_ctx->streams[packet.stream_index]->time_base.num
-                  / _ffmpeg->format_ctx->streams[packet.stream_index]->time_base.den;
-               _ffmpeg->subtitles_list_templates[i].current->end_time = (packet.dts + packet.duration) * 1000000
-                  * _ffmpeg->format_ctx->streams[packet.stream_index]->time_base.num
-                  / _ffmpeg->format_ctx->streams[packet.stream_index]->time_base.den;
-                  
-               av_free_packet(&packet);
+                subtitles_list::subtitle * storage = NULL;
+                if(_ffmpeg->subtitles_list_templates[i].format == subtitles_list::ssa)
+                {
+                    AVSubtitle subtitle;
+                    int ptr;
+                    avcodec_decode_subtitle2(_ffmpeg->subtitles_codec_ctxs[i], &subtitle, &ptr, &packet);
+                    _ffmpeg->subtitles_list_templates[i].data.push_back(subtitles_list::extract_text_from_ssa(subtitle.rects[0]->ass));
+                    storage = &_ffmpeg->subtitles_list_templates[i].data.back();
+                    for(unsigned int j = 1; j < subtitle.num_rects; j++)
+                        storage->text += std::string("\n") + subtitles_list::extract_text_from_ssa(subtitle.rects[j]->ass);
+                }
+                else
+                {
+                    storage = &_ffmpeg->subtitles_list_templates[i].data.back();
+                    storage->text = (char*)packet.data;
+                }
+                
+                storage->start_time = packet.dts * 1000000
+                    * _ffmpeg->format_ctx->streams[packet.stream_index]->time_base.num
+                    / _ffmpeg->format_ctx->streams[packet.stream_index]->time_base.den;
+                if(!packet.duration)
+                    packet.duration = 5000;
+                storage->end_time = (packet.dts + packet.duration) * 1000000
+                    * _ffmpeg->format_ctx->streams[packet.stream_index]->time_base.num
+                    / _ffmpeg->format_ctx->streams[packet.stream_index]->time_base.den;
+                    
+                av_free_packet(&packet);
             }
         }
         if (!packet_queued)
@@ -1377,11 +1384,11 @@ void media_object::start_subtitles_list_read(int subtitles_stream, size_t size)
     // Do nothing yet
 }
 
-subtitles_list media_object::finish_subtitles_list_read(int subtitles_stream)
+subtitles_list* media_object::finish_subtitles_list_read(int subtitles_stream)
 {
     assert(subtitles_stream >= 0);
     assert(subtitles_stream < subtitles_streams());
-    return _ffmpeg->subtitles_list_templates[subtitles_stream];
+    return &_ffmpeg->subtitles_list_templates[subtitles_stream];
 }
 
 int64_t media_object::tell()

@@ -53,7 +53,7 @@ private:
 
     video_frame _video_frame;                   // Video frame template for currently active video stream.
     audio_blob _audio_blob;                     // Audio blob template for currently active audio stream.
-    subtitles_list _subtitles_list;             // Subtitles list template for currently active subtitles stream.
+    subtitles_list* _subtitles_list;            // Subtitles list template for currently active subtitles stream.
 
     // Find the media object and its stream index for a given video or audio stream number.
     void get_video_stream(int stream, int &media_object, int &media_object_video_stream) const;

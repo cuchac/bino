@@ -260,7 +260,7 @@ void media_input::open(const std::vector<std::string> &urls)
     {
         int o, s;
         get_subtitles_stream(_active_subtitles_stream, o, s);
-        _subtitles_list = _media_objects[o].subtitles_list_template(s);
+        _subtitles_list = &_media_objects[o].subtitles_list_template(s);
         select_subtitles_stream(_active_subtitles_stream);
     }
 
@@ -379,7 +379,7 @@ const audio_blob &media_input::audio_blob_template() const
 const subtitles_list &media_input::subtitles_blob_template() const
 {
     assert(_active_subtitles_stream >= 0);
-    return _subtitles_list;
+    return *_subtitles_list;
 }
 
 bool media_input::stereo_layout_is_supported(video_frame::stereo_layout_t layout, bool) const
@@ -521,6 +521,8 @@ void media_input::select_subtitles_stream(int subtitles_stream)
             _media_objects[i].subtitles_stream_set_active(j, (i == static_cast<size_t>(o) && j == s));
         }
     }
+    
+    _subtitles_list = _media_objects[o].finish_subtitles_list_read(s);
 }
 
 void media_input::start_video_frame_read()
@@ -595,11 +597,7 @@ video_frame media_input::finish_video_frame_read()
     // Assign subtitle
     if(_active_subtitles_stream >= 0)
     {
-        int o, s;
-        get_subtitles_stream(_active_subtitles_stream, o, s);
-        _subtitles_list = _media_objects[o].finish_subtitles_list_read(s);
-
-        frame.subtitle = _subtitles_list.get_current_subtitle(frame.presentation_time);
+        frame.subtitle = _subtitles_list->get_current_subtitle(frame.presentation_time);
     }
         
     _have_active_video_read = false;
