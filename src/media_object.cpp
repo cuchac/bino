@@ -1102,6 +1102,7 @@ void read_thread::run()
         {
             if (packet.stream_index == _ffmpeg->subtitles_streams[i])
             {
+<<<<<<< HEAD
                 subtitles_list::subtitle * storage = NULL;
                 if(_ffmpeg->subtitles_list_templates[i].format == subtitles_list::ssa)
                 {
@@ -1129,6 +1130,29 @@ void read_thread::run()
                     / _ffmpeg->format_ctx->streams[packet.stream_index]->time_base.den;
                     
                 av_free_packet(&packet);
+=======
+               if(_ffmpeg->subtitles_list_templates[i].format == subtitles_list::ssa)
+               {
+                  AVSubtitle subtitle;
+                  int ptr;
+                  avcodec_decode_subtitle2(_ffmpeg->subtitles_codec_ctxs[i], &subtitle, &ptr, &packet);
+                  _ffmpeg->subtitles_list_templates[i].data.push_back(subtitles_list::extract_text_from_ssa(subtitle.rects[0]->ass));
+                  _ffmpeg->subtitles_list_templates[i].current = _ffmpeg->subtitles_list_templates[i].data.end()-1;
+                  for(unsigned int j = 1; j < subtitle.num_rects; j++)
+                     _ffmpeg->subtitles_list_templates[i].current->text += std::string("\n") + subtitles_list::extract_text_from_ssa(subtitle.rects[j]->ass);
+               }
+               else
+                  _ffmpeg->subtitles_list_templates[i].current->text = (char*)packet.data;
+               
+               _ffmpeg->subtitles_list_templates[i].current->start_time = packet.dts * 1000000
+                  * _ffmpeg->format_ctx->streams[packet.stream_index]->time_base.num
+                  / _ffmpeg->format_ctx->streams[packet.stream_index]->time_base.den;
+               _ffmpeg->subtitles_list_templates[i].current->end_time = (packet.dts + packet.duration) * 1000000
+                  * _ffmpeg->format_ctx->streams[packet.stream_index]->time_base.num
+                  / _ffmpeg->format_ctx->streams[packet.stream_index]->time_base.den;
+                  
+               av_free_packet(&packet);
+>>>>>>> Subtitles support: implement decoding and storing
             }
         }
         if (!packet_queued)
