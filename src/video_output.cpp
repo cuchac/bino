@@ -331,7 +331,7 @@ void video_output::prepare_next_frame(const video_frame &frame)
         _frame[index] = frame;
     }
     //Make sure subtitles are copied
-    _frame[index].subtitle_list = frame.subtitle_list;
+    _frame[index].subtitle = frame.subtitle;
     
     int bytes_per_pixel = (frame.layout == video_frame::bgra32 ? 4 : 1);
     GLenum format = (frame.layout == video_frame::bgra32 ? GL_BGRA : GL_LUMINANCE);
@@ -885,11 +885,11 @@ void video_output::display_current_frame(bool mono_right_instead_of_left,
         return;
     }
 
-    if(frame.subtitle_list)
+    if(frame.subtitle)
     {
-        FTBBox box = fontLayout.BBox(frame.subtitle_list->currentString.c_str());
+        FTBBox box = fontLayout.BBox(frame.subtitle->text.c_str());
         glWindowPos2f(0, box.Upper().Y()-box.Lower().Y());
-        fontLayout.Render(frame.subtitle_list->currentString.c_str());
+        fontLayout.Render(frame.subtitle->text.c_str());
     }
 }
 

@@ -572,7 +572,31 @@ void media_object::set_subtitles_list_template(int index)
     
     strncpy(subtitles_blob_template.lang, subtitles_stream->language, 4);
     
-    subtitles_blob_template.format = subtitles_list::text;
+    subtitles_list::format_t format;
+    switch(subtitles_stream->codec->codec_id)
+    {
+       case CODEC_ID_DVB_SUBTITLE:
+          format = subtitles_list::image;
+          break;
+       case CODEC_ID_SSA:
+          format = subtitles_list::ssa;
+          break;
+       case CODEC_ID_TEXT:
+          format = subtitles_list::text;
+          break;
+       case CODEC_ID_SRT:
+          format = subtitles_list::ssa;
+          break;
+       default:
+          format = subtitles_list::text;
+    }
+    subtitles_blob_template.format = format;
+    
+    if(subtitles_blob_template.format == subtitles_list::text)
+    {
+       subtitles_blob_template.data.resize(2); // Alloc two frames, one for current, second for next
+       subtitles_blob_template.current = subtitles_blob_template.data.begin();
+    }
 }
 
 void media_object::open(const std::string &url)
@@ -712,9 +736,9 @@ void media_object::open(const std::string &url)
             int j = _ffmpeg->subtitles_streams.size() - 1;
             msg::dbg(_url + " stream " + str::from(i) + " is subtitles stream " + str::from(j) + ".");
             _ffmpeg->subtitles_codec_ctxs.push_back(_ffmpeg->format_ctx->streams[i]->codec);
+				_ffmpeg->subtitles_codecs.push_back(avcodec_find_decoder(_ffmpeg->subtitles_codec_ctxs[j]->codec_id));
             if(_ffmpeg->subtitles_codec_ctxs[j]->codec_id != CODEC_ID_TEXT)
             {
-                _ffmpeg->subtitles_codecs.push_back(avcodec_find_decoder(_ffmpeg->subtitles_codec_ctxs[j]->codec_id));
                 if (!_ffmpeg->subtitles_codecs[j])
                 {
                     throw exc(_url + " stream " + str::from(i) + ": Unsupported subtitles codec.");
@@ -990,6 +1014,13 @@ void read_thread::run()
                 _ffmpeg->audio_packet_queue_mutexes[i].unlock();
             }
         }
+        for (size_t i = 0; !need_another_packet && i < _ffmpeg->subtitles_streams.size(); i++)
+        {
+            if (_ffmpeg->format_ctx->streams[_ffmpeg->subtitles_streams[i]]->discard == AVDISCARD_DEFAULT)
+            {
+                need_another_packet = true;
+            }
+        }
         if (!need_another_packet)
         {
             msg::dbg(_url + ": No need to read more packets.");
@@ -1070,40 +1101,27 @@ void read_thread::run()
         {
             if (packet.stream_index == _ffmpeg->subtitles_streams[i])
             {
-                _ffmpeg->subtitles_list_templates[i].currentString = (char*)packet.data;
-                _ffmpeg->subtitles_list_templates[i].presentation_time = packet.dts * 1000000
-                * _ffmpeg->format_ctx->streams[packet.stream_index]->time_base.num
-                / _ffmpeg->format_ctx->streams[packet.stream_index]->time_base.den;
-                _ffmpeg->subtitles_list_templates[i].presentation_time_end = (packet.dts + packet.duration) * 1000000
-                * _ffmpeg->format_ctx->streams[packet.stream_index]->time_base.num
-                / _ffmpeg->format_ctx->streams[packet.stream_index]->time_base.den;
-                msg::err("We have subtitle!!! stream: %ld, %s, %ld, %ld", i, _ffmpeg->subtitles_list_templates[i].currentString.c_str(), _ffmpeg->subtitles_list_templates[i].presentation_time, _ffmpeg->subtitles_list_templates[i].presentation_time_end);
-                /*
-                _ffmpeg->subtitles_packet_queue_mutexes[i].lock();
-                if (_ffmpeg->subtitles_packet_queues[i].empty()
-                    && _ffmpeg->subtitles_last_timestamps[i] == std::numeric_limits<int64_t>::min()
-                    && packet.dts == static_cast<int64_t>(AV_NOPTS_VALUE))
-                {
-                    // We have no packet in the queue and no last timestamp, probably
-                    // because we just seeked. We *need* a packet with a timestamp.
-                    msg::dbg(_url + ": subtitles stream " + str::from(i)
-                    + ": dropping packet because it has no timestamp");
-                }
-                else
-                {
-                    if (av_dup_packet(&packet) < 0)
-                    {
-                        _ffmpeg->subtitles_packet_queue_mutexes[i].unlock();
-                        throw exc(_url + ": Cannot duplicate packet.");
-                    }
-                    _ffmpeg->subtitles_packet_queues[i].push_back(packet);
-                    packet_queued = true;
-                    msg::dbg(_url + ": "
-                    + str::from(_ffmpeg->subtitles_packet_queues[i].size())
-                    + " packets queued in subtitles stream " + str::from(i) + ".");
-                }
-                _ffmpeg->subtitles_packet_queue_mutexes[i].unlock();
-                */
+               if(_ffmpeg->subtitles_list_templates[i].format == subtitles_list::ssa)
+               {
+                  AVSubtitle subtitle;
+                  int ptr;
+                  avcodec_decode_subtitle2(_ffmpeg->subtitles_codec_ctxs[i], &subtitle, &ptr, &packet);
+                  _ffmpeg->subtitles_list_templates[i].data.push_back(subtitles_list::extract_text_from_ssa(subtitle.rects[0]->ass));
+                  _ffmpeg->subtitles_list_templates[i].current = _ffmpeg->subtitles_list_templates[i].data.end()-1;
+                  for(unsigned int j = 1; j < subtitle.num_rects; j++)
+                     _ffmpeg->subtitles_list_templates[i].current->text += std::string("\n") + subtitles_list::extract_text_from_ssa(subtitle.rects[j]->ass);
+               }
+               else
+                  _ffmpeg->subtitles_list_templates[i].current->text = (char*)packet.data;
+               
+               _ffmpeg->subtitles_list_templates[i].current->start_time = packet.dts * 1000000
+                  * _ffmpeg->format_ctx->streams[packet.stream_index]->time_base.num
+                  / _ffmpeg->format_ctx->streams[packet.stream_index]->time_base.den;
+               _ffmpeg->subtitles_list_templates[i].current->end_time = (packet.dts + packet.duration) * 1000000
+                  * _ffmpeg->format_ctx->streams[packet.stream_index]->time_base.num
+                  / _ffmpeg->format_ctx->streams[packet.stream_index]->time_base.den;
+                  
+               av_free_packet(&packet);
             }
         }
         if (!packet_queued)

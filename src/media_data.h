@@ -26,7 +26,46 @@
 
 #include "s11n.h"
 
-class subtitles_list;
+
+class subtitles_list
+{
+public:
+   // Sample format
+   typedef enum
+   {
+      text,
+      ssa,              // subtitles stored as vector of strings
+      image,            // subtitles stored as stream of images
+   } format_t;
+   
+   struct subtitle
+   {
+      std::string text;            // subtitle text
+      int64_t start_time;          // Presentation timestamp
+      int64_t end_time;
+      
+      subtitle(const char * t = ""):text(t){};
+   };
+   
+   format_t format;      // Subtitles format
+   char lang[4];         // Subtitles language
+   
+   typedef std::vector<subtitle> subtitles;
+   subtitles  data;
+   subtitles::iterator current;
+   
+   // Return a string describing the format
+   std::string format_info() const;    // Human readable information
+   std::string format_name() const;    // Short code
+   
+   // Constructor
+   subtitles_list();
+   
+   // Returns pointer to actual subtitle or NULL if none should be diplayed
+   subtitle * get_current_subtitle(int64_t time);
+   static const char* extract_text_from_ssa(const char* text);
+   subtitles::iterator find_next_subtitle(int64_t time);
+};
 
 class video_frame
 {
@@ -91,7 +130,7 @@ public:
     // so it does not free them on destruction.
     void *data[2][3];                   // Data pointer for 1-3 planes in 1-2 views. NULL if unused.
     size_t line_size[2][3];             // Line size for 1-3 planes in 1-2 views. 0 if unused.
-    subtitles_list *subtitle_list;     // Associated subtitles with frame
+    subtitles_list::subtitle *subtitle;     // Associated subtitles with frame
 
     int64_t presentation_time;          // Presentation timestamp
 
@@ -157,33 +196,6 @@ public:
 
     // Return the number of bits the sample format
     int sample_bits() const;
-};
-
-class subtitles_list
-{
-public:
-    // Sample format
-    typedef enum
-    {
-        text,
-        srt,              // subtitles stored as vector of strings
-        image,            // subtitles stored as stream of images
-    } format_t;
-	 
-	 format_t format;      // Subtitles format
-    char lang[4];         // Subtitles language
-	 
-	 std::vector<std::string>	data;
-    std::string currentString;
-    int64_t presentation_time;          // Presentation timestamp
-    int64_t presentation_time_end;
-    
-    // Return a string describing the format
-    std::string format_info() const;    // Human readable information
-    std::string format_name() const;    // Short code
-
-    // Constructor
-    subtitles_list();
 };
 
 class parameters : public s11n

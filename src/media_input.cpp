@@ -599,12 +599,7 @@ video_frame media_input::finish_video_frame_read()
         get_subtitles_stream(_active_subtitles_stream, o, s);
         _subtitles_list = _media_objects[o].finish_subtitles_list_read(s);
 
-        if(frame.presentation_time >= _subtitles_list.presentation_time /*&& 
-            frame.presentation_time <= _subtitles_list.presentation_time_end*/
-        )
-            frame.subtitle_list = &_subtitles_list;
-        else
-            frame.subtitle_list = NULL;
+        frame.subtitle = _subtitles_list.get_current_subtitle(frame.presentation_time);
     }
         
     _have_active_video_read = false;

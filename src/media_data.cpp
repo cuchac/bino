@@ -45,7 +45,7 @@ video_frame::video_frame() :
     stereo_layout(mono),
     stereo_layout_swap(false),
     presentation_time(std::numeric_limits<int64_t>::min()),
-    subtitle_list(NULL)
+    subtitle(NULL)
 {
     for (int i = 0; i < 2; i++)
     {
@@ -443,7 +443,7 @@ std::string subtitles_list::format_name() const
         case image:
             format_name = "image";
             break;
-        case srt:
+        case ssa:
             format_name = "srt";
             break;
     }
@@ -452,6 +452,70 @@ std::string subtitles_list::format_name() const
 
 subtitles_list::subtitles_list():format(text)
 {
+}
+
+subtitles_list::subtitle* subtitles_list::get_current_subtitle(int64_t time)
+{
+   if(current == data.end())
+      return NULL;
+   
+   switch (format)
+   {
+      case text:
+      {
+         if(time > current->start_time && time < current->end_time)
+            return &*current;
+         if(time > data[1].start_time && time < data[1].end_time)
+         {
+            data[0] = data[1];
+            return &*current;
+         }
+         return NULL;
+      }
+         break;
+      case image:
+         return NULL; // TODO:
+         break;
+      case ssa:
+      {
+         if(time < current->start_time)
+            return NULL;
+         
+         if(time > current->start_time && time < current->end_time)
+            return &*current;
+         
+         if(find_next_subtitle(time) == data.end())
+            return NULL; // End of subtitles
+         
+         if(time > current->start_time)
+            return &*current; // Found the right one
+         
+         return NULL;
+      }
+      break;
+   }
+}
+
+subtitles_list::subtitles::iterator subtitles_list::find_next_subtitle(int64_t time)
+{
+   subtitles::iterator it = current;
+   for(; current != data.end(); current++)
+      if(time < it->end_time)
+         break;
+   return current;
+}
+
+
+const char* subtitles_list::extract_text_from_ssa(const char* text)
+{
+   // Very naive - return text after third comma
+   //TODO: Add some advanced logic
+   const char * text_pos = text;
+   for(int i = 0; i < 3; i++)
+      if((text_pos = strchr(text_pos, ',')) != NULL)
+         text_pos++;
+   
+   return text_pos ? text_pos : ""; 
 }
 
 parameters::parameters() :
