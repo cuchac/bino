@@ -542,10 +542,13 @@ void video_output_qt::process_events()
 
 void video_output_qt::receive_notification(const notification &note)
 {
-    if (note.type == notification::play)
+    std::istringstream current(note.current);
+   
+    switch(note.type)
     {
-        std::istringstream current(note.current);
+    case notification::play:
         s11n::load(current, _playing);
+        break;
     }
     /* More is currently not implemented.
      * In the future, an on-screen display might show hints about what happened. */

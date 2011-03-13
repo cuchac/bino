@@ -893,6 +893,35 @@ void player::receive_cmd(const command &cmd)
         parameters_changed = true;
         notify(notification::ghostbust, oldval, _params.ghostbust);
         break;
+    case command::set_subtitles_font:
+      {
+         std::string old_file;
+         old_file = _params.subtitles_font;
+         _params.subtitles_font = cmd.param;
+         parameters_changed = true;
+         notify(notification::subtitles_font, old_file, _params.subtitles_font);
+         break;
+      }
+      case command::set_subtitles_size:
+      {
+         int val, old_val;
+         s11n::load(p, val);
+         old_val = _params.subtitles_size;
+         _params.subtitles_size = std::max(std::min(val, 150), 1);
+         parameters_changed = true;
+         notify(notification::subtitles_size, old_val, _params.subtitles_size);
+         break;
+      }
+      case command::set_subtitles_color:
+      {
+         int val, old_val;
+         s11n::load(p, val);
+         old_val = _params.subtitles_color;
+         _params.subtitles_color = val & 0x00FFFFFF;
+         parameters_changed = true;
+         notify(notification::subtitles_color, old_val, _params.subtitles_color);
+         break;
+      }
     }
 
     if (parameters_changed && _video_output)

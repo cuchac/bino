@@ -530,7 +530,10 @@ parameters::parameters() :
     contrast(std::numeric_limits<float>::quiet_NaN()),
     brightness(std::numeric_limits<float>::quiet_NaN()),
     hue(std::numeric_limits<float>::quiet_NaN()),
-    saturation(std::numeric_limits<float>::quiet_NaN())
+    saturation(std::numeric_limits<float>::quiet_NaN()),
+    subtitles_color(0x00FFFFFF),
+    subtitles_size(12),
+    subtitles_font("")
 {
 }
 
@@ -571,6 +574,18 @@ void parameters::set_defaults()
     if (!std::isfinite(saturation) || saturation < -1.0f || saturation > +1.0f)
     {
         saturation = 0.0f;
+    }
+    if (subtitles_color < 0 || subtitles_color > 0x00FFFFFF)
+    {
+       subtitles_color = 0x00FFFFFF;
+    }
+    if (subtitles_size < 1 || subtitles_size > 150)
+    {
+       subtitles_size = 12;
+    }
+    if (subtitles_font.empty())
+    {
+       subtitles_font = "Arial.ttf";
     }
 }
 
@@ -789,6 +804,9 @@ void parameters::save(std::ostream &os) const
     s11n::save(os, brightness);
     s11n::save(os, hue);
     s11n::save(os, saturation);
+    s11n::save(os, subtitles_color);
+    s11n::save(os, subtitles_font);
+    s11n::save(os, subtitles_size);
 }
 
 void parameters::load(std::istream &is)
@@ -806,4 +824,7 @@ void parameters::load(std::istream &is)
     s11n::load(is, brightness);
     s11n::load(is, hue);
     s11n::load(is, saturation);
+    s11n::load(is, subtitles_color);
+    s11n::load(is, subtitles_font);
+    s11n::load(is, subtitles_size);
 }

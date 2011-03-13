@@ -47,6 +47,9 @@
 #include <QStandardItemModel>
 #include <QTextBrowser>
 #include <QTabWidget>
+#include <QFontDialog>
+#include <QFileDialog>
+#include <QColorDialog>
 
 #include "player_qt.h"
 #include "qt_app.h"
@@ -1239,11 +1242,126 @@ void stereoscopic_dialog::receive_notification(const notification &note)
 }
 
 
+
+subtitles_dialog::subtitles_dialog(const parameters &params, QWidget *parent) : QDialog(parent),
+_lock(false)
+{
+   setModal(false);
+   setWindowTitle("Subtitles Settings");
+   
+   QLabel *font_label = new QLabel("Font:");
+   _font_label = new QLineEdit(params.subtitles_font.c_str());
+   _font_button = new QPushButton("Browse...");
+   connect(_font_button, SIGNAL(pressed()), this, SLOT(font_button_pushed()));
+   
+   QLabel *font_size_label = new QLabel("Font Size:");
+   _font_size_spinbox = new QSpinBox();
+   _font_size_spinbox->setRange(1, 150);
+   _font_size_spinbox->setValue(params.subtitles_size);
+   connect(_font_size_spinbox, SIGNAL(valueChanged(int)), this, SLOT(font_size_changed(int)));
+   
+   QLabel *color_label = new QLabel("Color:");
+   _color_box = new QLabel("");
+   _color_box->setAutoFillBackground(true);
+   _color_box->setMinimumSize(50, 20);
+   set_font_color(params.subtitles_color);
+   //connect(_color_box, SIGNAL(QLabel), this, SLOT(color_button_pushed()));
+   
+   _color_button = new QPushButton("Set color...");
+   connect(_color_button, SIGNAL(pressed()), this, SLOT(color_button_pushed()));
+   
+   _color_dialog = new QColorDialog();
+   _color_dialog->setCurrentColor(QColor(QRgb(params.subtitles_color)));
+   
+   QGridLayout *layout = new QGridLayout;
+   layout->addWidget(font_label, 0, 0);
+   layout->addWidget(_font_label, 0, 1);
+   layout->addWidget(_font_button, 0, 2);
+   layout->addWidget(font_size_label, 1, 0);
+   layout->addWidget(_font_size_spinbox, 1, 1);
+   layout->addWidget(color_label, 2, 0);
+   layout->addWidget(_color_box, 2, 1);
+   layout->addWidget(_color_button, 2, 2);
+
+   setLayout(layout);
+}
+
+void subtitles_dialog::font_button_pushed()
+{
+   std::string file = QFileDialog::getOpenFileName(this, "Open Font", "", "Font Files (*.ttf)").toStdString();
+   if(!file.empty())
+   {
+      _font_label->setText(file.c_str());
+      
+      if (!_lock)
+      {
+         send_cmd(command::set_subtitles_font, file.c_str());
+      }
+   }  
+}
+
+void subtitles_dialog::color_button_pushed()
+{
+   if(_color_dialog->exec())
+   {
+      set_font_color(_color_dialog->currentColor().rgb());
+      
+      if (!_lock)
+      {
+         send_cmd(command::set_subtitles_color, static_cast<int>(_color_dialog->currentColor().rgb()));
+      }
+   }
+}
+
+void subtitles_dialog::font_size_changed(int value)
+{
+   if (!_lock)
+   {
+      send_cmd(command::set_subtitles_size, value);
+   }
+}
+
+void subtitles_dialog::set_font_color(int rgb)
+{
+   QPalette palette = _color_box->palette();
+   palette.setColor(QPalette::Window, QColor(QRgb(rgb)));
+   _color_box->setPalette(palette);
+}
+
+void subtitles_dialog::receive_notification(const notification &note)
+{
+   std::istringstream current(note.current);
+   int value;
+   std::string s_value;
+   
+   switch (note.type)
+   {
+      case notification::subtitles_font:
+         _font_label->setText(note.current.c_str());
+         break;
+      case notification::subtitles_size:
+         s11n::load(current, value);
+         _font_size_spinbox->setValue(value);
+         break;
+      case notification::subtitles_color:
+         s11n::load(current, value);
+         _lock = true;
+         set_font_color(value);
+         _lock = false;
+         break;
+      default:
+         /* not handled */
+         break;
+   }
+}
+
+
 main_window::main_window(QSettings *settings, const player_init_data &init_data) :
     _settings(settings),
     _color_dialog(NULL),
     _crosstalk_dialog(NULL),
     _stereoscopic_dialog(NULL),
+    _subtitles_dialog(NULL),
     _player(NULL),
     _init_data(init_data),
     _init_data_template(init_data),
@@ -1282,6 +1400,10 @@ main_window::main_window(QSettings *settings, const player_init_data &init_data)
     if (!(_init_data.params.crosstalk_b >= 0.0f && _init_data.params.crosstalk_b <= 1.0f))
     {
         _init_data.params.crosstalk_b = _settings->value("crosstalk_b", QString("0")).toFloat();
+    }
+    if (_init_data.params.subtitles_font.empty())
+    {
+       _init_data.params.subtitles_font = _settings->value("subtitles_font", QString("Arial.ttf")).toString().toStdString();
     }
     _settings->endGroup();
     _init_data.params.set_defaults();
@@ -1333,6 +1455,9 @@ main_window::main_window(QSettings *settings, const player_init_data &init_data)
     QAction *preferences_stereoscopic_act = new QAction(tr("Stereoscopic Video Settings..."), this);
     connect(preferences_stereoscopic_act, SIGNAL(triggered()), this, SLOT(preferences_stereoscopic()));
     preferences_menu->addAction(preferences_stereoscopic_act);
+    QAction *preferences_subtitles_act = new QAction(tr("Subtitles Settings..."), this);
+    connect(preferences_subtitles_act, SIGNAL(triggered()), this, SLOT(preferences_subtitles()));
+    preferences_menu->addAction(preferences_subtitles_act);
     QMenu *help_menu = menuBar()->addMenu(tr("&Help"));
     QAction *help_manual_act = new QAction(tr("&Manual..."), this);
     help_manual_act->setShortcut(QKeySequence::HelpContents);
@@ -1505,6 +1630,24 @@ void main_window::receive_notification(const notification &note)
         _settings->setValue("ghostbust", QVariant(_init_data.params.ghostbust).toString());
         _settings->endGroup();
         break;
+        
+    case notification::subtitles_color:
+       s11n::load(current, _init_data.params.subtitles_color);
+       _settings->beginGroup("Video/" + current_file_hash());
+       _settings->setValue("subtitles_color", QVariant(_init_data.params.subtitles_color).toString());
+       _settings->endGroup();
+       break;
+       
+    case notification::subtitles_font:
+       _init_data.params.subtitles_font = note.current;
+       break;
+       
+    case notification::subtitles_size:
+       s11n::load(current, _init_data.params.subtitles_size);
+       _settings->beginGroup("Video/" + current_file_hash());
+       _settings->setValue("subtitles_size", QVariant(_init_data.params.subtitles_size).toString());
+       _settings->endGroup();
+       break;
 
     case notification::pause:
     case notification::stereo_layout:
@@ -1563,6 +1706,7 @@ void main_window::closeEvent(QCloseEvent *event)
     _settings->setValue("crosstalk_r", QVariant(_init_data.params.crosstalk_r).toString());
     _settings->setValue("crosstalk_g", QVariant(_init_data.params.crosstalk_g).toString());
     _settings->setValue("crosstalk_b", QVariant(_init_data.params.crosstalk_b).toString());
+    _settings->setValue("subtitles_font", QVariant(_init_data.params.subtitles_font.c_str()).toString());
     _settings->endGroup();
     event->accept();
 }
@@ -1647,6 +1791,8 @@ void main_window::open(QStringList filenames)
         _init_data.audio_stream = std::max(0, std::min(_init_data.audio_stream, _player->get_media_input().audio_streams() - 1));
         _init_data.params.parallax = QVariant(_settings->value("parallax", QVariant(_init_data.params.parallax)).toString()).toFloat();
         _init_data.params.ghostbust = QVariant(_settings->value("ghostbust", QVariant(_init_data.params.ghostbust)).toString()).toFloat();
+        _init_data.params.subtitles_color = QVariant(_settings->value("subtitles_color", QVariant(_init_data.params.subtitles_color)).toString()).toInt();
+        _init_data.params.subtitles_size = QVariant(_settings->value("subtitles_size", QVariant(_init_data.params.subtitles_size)).toString()).toInt();
         // Get stereo mode for this video
         _settings->endGroup();
         QString mode_fallback = QString(parameters::stereo_mode_to_string(
@@ -1748,6 +1894,17 @@ void main_window::preferences_stereoscopic()
     _stereoscopic_dialog->show();
     _stereoscopic_dialog->raise();
     _stereoscopic_dialog->activateWindow();
+}
+
+void main_window::preferences_subtitles()
+{
+   if (!_subtitles_dialog)
+   {
+      _subtitles_dialog = new subtitles_dialog(_init_data.params, this);
+   }
+   _subtitles_dialog->show();
+   _subtitles_dialog->raise();
+   _subtitles_dialog->activateWindow();
 }
 
 void main_window::help_manual()

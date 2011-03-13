@@ -33,10 +33,13 @@
 #include <QTimer>
 #include <QSettings>
 #include <QDialog>
+#include <QLineEdit>
+#include <QFontDialog>
 
 #include "controller.h"
 #include "video_output_qt.h"
 #include "player.h"
+#include <QColorDialog>
 
 
 class player_qt_internal : public player, public controller
@@ -202,6 +205,7 @@ class stereoscopic_dialog : public QDialog, public controller
 
 private:
     bool _lock;
+    
     QDoubleSpinBox *_p_spinbox;
     QSlider *_p_slider;
     QDoubleSpinBox *_g_spinbox;
@@ -219,6 +223,33 @@ public:
     virtual void receive_notification(const notification &note);
 };
 
+class subtitles_dialog : public QDialog, public controller
+{
+   Q_OBJECT
+   
+private:
+   bool _lock;
+   QLineEdit *_font_label;
+   QPushButton * _font_button;
+   QColorDialog * _color_dialog;
+   QSpinBox * _font_size_spinbox;
+   QLabel * _color_box;
+   QPushButton * _color_button;
+   
+private slots:
+   void font_button_pushed();
+   void color_button_pushed();
+   void font_size_changed(int value);
+   
+private:
+   void set_font_color(int rgb);
+   
+public:
+   subtitles_dialog(const parameters &params, QWidget *parent);
+   
+   virtual void receive_notification(const notification &note);
+};
+
 
 class main_window : public QMainWindow, public controller
 {
@@ -232,6 +263,7 @@ private:
     color_dialog *_color_dialog;
     crosstalk_dialog *_crosstalk_dialog;
     stereoscopic_dialog *_stereoscopic_dialog;
+    subtitles_dialog *_subtitles_dialog;
     player_qt_internal *_player;
     QTimer *_timer;
     player_init_data _init_data;
@@ -250,6 +282,7 @@ private slots:
     void preferences_colors();
     void preferences_crosstalk();
     void preferences_stereoscopic();
+    void preferences_subtitles();
     void help_manual();
     void help_website();
     void help_keyboard();

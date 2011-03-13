@@ -27,9 +27,12 @@
 
 #include <GL/glew.h>
 
+
 #include "media_data.h"
 #include "controller.h"
 
+class FTPixmapFont;
+class FTSimpleLayout;
 
 class video_output : public controller
 {
@@ -64,6 +67,7 @@ private:
     GLuint _render_mask_tex;            // for the masking modes even-odd-{rows,columns}, checkerboard
     // OpenGL Viewport for drawing the video frame
     GLint _viewport[4];
+    
 
 private:
     // Step 1: initialize/deinitialize, and check if reinitialization is necessary
@@ -101,6 +105,9 @@ protected:
     {
         display_current_frame(false, -1.0f, -1.0f, 2.0f, 2.0f, _viewport);
     }
+
+    FTPixmapFont *subtitles_font;
+    FTSimpleLayout *subtitles_layout;
 
 public:
     /* Constructor, Destructor */

@@ -72,7 +72,10 @@ public:
         set_parallax,                   // float (absolute value)
         set_crosstalk,                  // 3 floats (absolute values)
         adjust_ghostbust,               // float (relative adjustment)
-        set_ghostbust                   // float (absolute value)
+        set_ghostbust,                  // float (absolute value)
+        set_subtitles_font,             // filename, string
+        set_subtitles_size,        // int
+        set_subtitles_color        // RGB color, int
     };
     
     type type;
@@ -128,7 +131,11 @@ public:
         pos,                    // float
         parallax,               // float
         crosstalk,              // 3 floats
-        ghostbust               // float
+        ghostbust,              // float
+        subtitles_font,         // string
+        subtitles_size,    // int
+        subtitles_color,   // int
+        
     };
     
     type type;

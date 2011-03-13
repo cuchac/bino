@@ -84,14 +84,10 @@
  */
 
 
-
-// Create a pixmap font from a TrueType file.
-FTGLPixmapFont font("/usr/share/fonts/corefonts/arial.ttf");
-FTSimpleLayout fontLayout;
-
-
 video_output::video_output(bool receive_notifications) :
     controller(receive_notifications),
+    subtitles_font(NULL),
+    subtitles_layout(NULL),
     _initialized(false)
 {
     // XXX: Hack: work around broken SRGB texture implementations
@@ -114,16 +110,22 @@ video_output::video_output(bool receive_notifications) :
     _color_fbo = 0;
     _render_prg = 0;
     _render_mask_tex = 0;
-    // Set the font size and render a small text.
-    font.FaceSize(20);
-    fontLayout.SetFont(&font);
-    fontLayout.SetAlignment(FTGL::ALIGN_CENTER);
-    fontLayout.SetLineLength(100);
-    fontLayout.SetLineSpacing(0.7);
+    
+#ifdef HAVE_LIBFTGL
+    // Set layout properties
+    subtitles_layout = new FTSimpleLayout();
+    subtitles_layout->SetAlignment(FTGL::ALIGN_CENTER);
+    subtitles_layout->SetLineLength(100); // Will be overwriten on resize
+    subtitles_layout->SetLineSpacing(0.7);
+#endif
 }
 
 video_output::~video_output()
 {
+   if(subtitles_font)
+      delete subtitles_font;
+   if(subtitles_layout)
+      delete subtitles_layout;
 }
 
 void video_output::init()
@@ -190,7 +192,8 @@ void video_output::set_suitable_size(int w, int h, float ar, parameters::stereo_
         height = max_height;
     }
     trigger_resize(width, height);
-    fontLayout.SetLineLength(width);
+    
+    subtitles_layout->SetLineLength(width);
 }
 
 void video_output::input_init(int index, const video_frame &frame)
@@ -592,6 +595,27 @@ void video_output::activate_next_frame()
 
 void video_output::set_parameters(const parameters &params)
 {
+    if(subtitles_layout)
+    {
+        if(!subtitles_font || params.subtitles_font != _params.subtitles_font)
+        {
+            if(subtitles_font)
+                delete subtitles_font;
+            subtitles_font = new FTPixmapFont(params.subtitles_font.c_str());
+            if(subtitles_font->Error())
+            {
+                msg::wrn("Unable to load subtitles font: %s", params.subtitles_font.c_str());
+                delete subtitles_font;
+                subtitles_font = 0;
+            }
+        }
+        if(subtitles_font)
+        {
+            subtitles_font->FaceSize(params.subtitles_size);
+            subtitles_layout->SetFont(subtitles_font);
+        }
+    }
+   
     _params = params;
     bool context_needs_stereo = (_params.stereo_mode == parameters::stereo);
     if (context_needs_stereo != context_is_stereo())
@@ -877,19 +901,23 @@ void video_output::display_current_frame(bool mono_right_instead_of_left,
         draw_quad(-1.0f, -1.0f, 2.0f, 1.0f);
     }
     assert(xgl::CheckError(HERE));
-    
-    // If something went wrong, bail out.
-    if(font.Error())
-    {
-        msg::err(str::from("Error in FTGL library!!!"));
-        return;
-    }
 
-    if(frame.subtitle)
+    if(subtitles_font && frame.subtitle)
     {
-        FTBBox box = fontLayout.BBox(frame.subtitle->text.c_str());
+        // If something went wrong, bail out.
+        if(subtitles_font->Error())
+        {
+            msg::err(str::from("Error in FTGL library!!!"));
+            return;
+        }
+        
+        FTBBox box = subtitles_layout->BBox(frame.subtitle->text.c_str());
         glWindowPos2f(0, box.Upper().Y()-box.Lower().Y());
-        fontLayout.Render(frame.subtitle->text.c_str());
+        GLfloat old_color[4];
+        glGetFloatv(GL_CURRENT_COLOR, old_color);
+        glColor3i(_params.subtitles_color&&0xFF, _params.subtitles_color&&0xFF00, _params.subtitles_color&&0xFF0000);
+        subtitles_layout->Render(frame.subtitle->text.c_str());
+        glColor4fv(old_color);
     }
 }
 
