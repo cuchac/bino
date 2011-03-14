@@ -575,28 +575,27 @@ void media_object::set_subtitles_list_template(int index)
     subtitles_list::format_t format;
     switch(subtitles_stream->codec->codec_id)
     {
-       case CODEC_ID_DVB_SUBTITLE:
-          format = subtitles_list::image;
-          break;
-       case CODEC_ID_SSA:
-          format = subtitles_list::ssa;
-          break;
-       case CODEC_ID_TEXT:
-          format = subtitles_list::text;
-          break;
-       case CODEC_ID_SRT:
-          format = subtitles_list::ssa;
-          break;
-       default:
-          format = subtitles_list::text;
+    case CODEC_ID_DVB_SUBTITLE:
+        format = subtitles_list::image;
+        break;
+    case CODEC_ID_SSA:
+        format = subtitles_list::ssa;
+        break;
+    case CODEC_ID_TEXT:
+        format = subtitles_list::text;
+        break;
+    case CODEC_ID_SRT:
+        format = subtitles_list::ssa;
+        break;
+    default:
+        format = subtitles_list::text;
     }
     subtitles_blob_template.format = format;
     
     if(subtitles_blob_template.format == subtitles_list::text)
-    {
-       subtitles_blob_template.data.resize(2); // Alloc two frames, one for current, second for next
-       subtitles_blob_template.current = subtitles_blob_template.data.begin();
-    }
+        subtitles_blob_template.data.resize(2); // Alloc two frames, one for current, second for next
+       
+    subtitles_blob_template.current = 0;
 }
 
 void media_object::open(const std::string &url)
@@ -1115,7 +1114,7 @@ void read_thread::run()
                 }
                 else
                 {
-                    storage = &_ffmpeg->subtitles_list_templates[i].data.back();
+                    storage = &_ffmpeg->subtitles_list_templates[i].data[(_ffmpeg->subtitles_list_templates[i].current+1) % 2];
                     storage->text = (char*)packet.data;
                 }
                 
@@ -1447,6 +1446,10 @@ void media_object::seek(int64_t dest_pos)
     for (size_t i = 0; i < _ffmpeg->audio_streams.size(); i++)
     {
         _ffmpeg->audio_last_timestamps[i] = std::numeric_limits<int64_t>::min();
+    }
+    for (size_t i = 0; i < _ffmpeg->subtitles_streams.size(); i++)
+    {
+       _ffmpeg->subtitles_list_templates[i].current = 0;
     }
     _ffmpeg->pos = std::numeric_limits<int64_t>::min();
     // Restart packet reading

@@ -52,7 +52,7 @@ public:
    
    typedef std::vector<subtitle> subtitles;
    subtitles  data;
-   subtitles::iterator current;
+   size_t current;
    
    // Return a string describing the format
    std::string format_info() const;    // Human readable information
@@ -64,7 +64,7 @@ public:
    // Returns pointer to actual subtitle or NULL if none should be diplayed
    subtitle * get_current_subtitle(int64_t time);
    static const char* extract_text_from_ssa(const char* text);
-   subtitles::iterator find_next_subtitle(int64_t time);
+   size_t find_next_subtitle(int64_t time);
 };
 
 class video_frame

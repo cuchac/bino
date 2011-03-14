@@ -450,60 +450,65 @@ std::string subtitles_list::format_name() const
     return str::asprintf("%s, %s", lang, format_name);
 }
 
-subtitles_list::subtitles_list():format(text)
+subtitles_list::subtitles_list():format(text),current(0)
 {
 }
 
 subtitles_list::subtitle* subtitles_list::get_current_subtitle(int64_t time)
 {
-   if(current == data.end())
-      return NULL;
-   
-   switch (format)
-   {
-      case text:
-      {
-         if(time > current->start_time && time < current->end_time && time < data[1].start_time)
-            return &*current;
-         if(time > data[1].start_time && time < data[1].end_time)
-         {
-            data[0] = data[1];
-            current = data.begin();
-            return &*current;
-         }
-         return NULL;
-      }
-         break;
-      case image:
-         return NULL; // TODO:
-         break;
-      case ssa:
-      {
-         if(time < current->start_time)
+    if(current >= data.size())
+        return NULL;
+
+    switch (format)
+    {
+    case text:
+        {
+            size_t next = (current + 1) % 2;
+            if(time > data[current].start_time && time < data[current].end_time && time < data[next].start_time)
+                return &data[current];
+            if(time > data[next].start_time && time < data[next].end_time)
+            {
+                current=next;
+                return &data[current];
+            }
             return NULL;
-         
-         if(time > current->start_time && time < current->end_time)
-            return &*current;
-         
-         if(find_next_subtitle(time) == data.end())
-            return NULL; // End of subtitles
-         
-         if(time > current->start_time)
-            return &*current; // Found the right one
-         
-         return NULL;
-      }
-      break;
-   }
+        }
+        break;
+            
+    case image:
+        return NULL; // TODO:
+        break;
+            
+    case ssa:
+        {
+            if(time < data[current].start_time)
+                return NULL;
+            
+            if(current < data.size()-2 && time > data[current+1].start_time)
+                if(find_next_subtitle(time) == data.size())
+                    return NULL; // End of subtitles
+            
+            if(time > data[current].start_time && time < data[current].end_time)
+                return &data[current];
+            
+            if(find_next_subtitle(time) == data.size())
+                return NULL; // End of subtitles
+            
+            if(time > data[current].start_time)
+                return &data[current]; // Found the right one
+            
+            return NULL;
+        }
+        break;
+    }
 }
 
-subtitles_list::subtitles::iterator subtitles_list::find_next_subtitle(int64_t time)
+size_t subtitles_list::find_next_subtitle(int64_t time)
 {
-   subtitles::iterator it = current;
-   for(; current != data.end(); current++)
-      if(time < it->end_time)
-         break;
-   return current;
+    for(; current < data.size(); current++)
+        if(time < data[current].end_time)
+            return current;
+    return current+1;
 }
 
 
