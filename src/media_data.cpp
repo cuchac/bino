@@ -447,7 +447,7 @@ std::string subtitles_list::format_name() const
             format_name = "srt";
             break;
     }
-    return str::asprintf("%s, %s", lang, format_name);
+    return str::asprintf("%s, %s", lang.empty() ? "Unknown language" : lang.c_str(), format_name);
 }
 
 subtitles_list::subtitles_list():format(text),current(0)
@@ -464,13 +464,14 @@ subtitles_list::subtitle* subtitles_list::get_current_subtitle(int64_t time)
     case text:
         {
             size_t next = (current + 1) % 2;
-            if(time > data[current].start_time && time < data[current].end_time && time < data[next].start_time)
-                return &data[current];
-            if(time > data[next].start_time && time < data[next].end_time)
+            if(data[next].start_time && time > data[next].start_time && time < data[next].end_time)
             {
+                data[current].start_time = data[current].end_time = 0;
                 current=next;
                 return &data[current];
             }
+            if(time > data[current].start_time && time < data[current].end_time)
+                return &data[current];
             return NULL;
         }
         break;

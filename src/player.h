@@ -44,6 +44,7 @@ public:
     std::vector<std::string> urls;              // Input media objects
     int video_stream;                           // Selected video stream
     int audio_stream;                           // Selected audio stream
+    int subtitles_stream;                           // Selected audio stream
     bool benchmark;                             // Benchmark mode?
     bool fullscreen;                            // Make video fullscreen?
     bool center;                                // Center video on screen?

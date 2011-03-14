@@ -166,6 +166,17 @@ in_out_widget::in_out_widget(QSettings *settings, const player_qt_internal *play
     connect(_input_combobox, SIGNAL(currentIndexChanged(int)), this, SLOT(input_changed()));
     layout1->addWidget(_input_combobox, 0, 1);
     layout1->setColumnStretch(1, 1);
+    
+    QLabel *subtitles_label = new QLabel("Subtitles:");
+    subtitles_label->setToolTip(
+        "<p>Select the subtitles stream.</p>");
+    layout1->addWidget(subtitles_label, 0, 2);
+    _subtitles_combobox = new QComboBox(this);
+    _subtitles_combobox->setToolTip(subtitles_label->toolTip());
+    connect(_subtitles_combobox, SIGNAL(currentIndexChanged(int)), this, SLOT(subtitles_changed()));
+    layout1->addWidget(_subtitles_combobox, 0, 3);
+    layout1->setColumnStretch(1, 1);
+    layout1->setColumnStretch(3, 1);
 
     QGridLayout *layout2 = new QGridLayout;
     QLabel *output_label = new QLabel("Output:");
@@ -219,9 +230,11 @@ in_out_widget::in_out_widget(QSettings *settings, const player_qt_internal *play
     input_label->setMinimumSize(output_label->minimumSizeHint());
     audio_label->setMinimumSize(output_label->minimumSizeHint());
     video_label->setMinimumSize(output_label->minimumSizeHint());
+    subtitles_label->setMinimumSize(output_label->minimumSizeHint());
 
     _video_combobox->setEnabled(false);
     _audio_combobox->setEnabled(false);
+    _subtitles_combobox->setEnabled(false);
     _input_combobox->setEnabled(false);
     _output_combobox->setEnabled(false);
     _swap_checkbox->setEnabled(false);
@@ -360,6 +373,14 @@ void in_out_widget::audio_changed()
     }
 }
 
+void in_out_widget::subtitles_changed()
+{
+    if (!_lock)
+    {
+        send_cmd(command::set_subtitles_stream, _subtitles_combobox->currentIndex());
+    }
+}
+
 void in_out_widget::input_changed()
 {
     video_frame::stereo_layout_t stereo_layout;
@@ -423,11 +444,13 @@ void in_out_widget::update(const player_init_data &init_data, bool have_valid_in
     _lock = true;
     _video_combobox->setEnabled(have_valid_input);
     _audio_combobox->setEnabled(have_valid_input);
+    _subtitles_combobox->setEnabled(have_valid_input);
     _input_combobox->setEnabled(have_valid_input);
     _output_combobox->setEnabled(have_valid_input);
     _swap_checkbox->setEnabled(have_valid_input);
     _video_combobox->clear();
     _audio_combobox->clear();
+    _subtitles_combobox->clear();
     if (have_valid_input)
     {
         for (int i = 0; i < _player->get_media_input().video_streams(); i++)
@@ -438,8 +461,13 @@ void in_out_widget::update(const player_init_data &init_data, bool have_valid_in
         {
             _audio_combobox->addItem(_player->get_media_input().audio_stream_name(i).c_str());
         }
+        for (int i = 0; i < _player->get_media_input().subtitles_streams(); i++)
+        {
+            _subtitles_combobox->addItem(_player->get_media_input().subtitles_stream_name(i).c_str());
+        }
         _video_combobox->setCurrentIndex(init_data.video_stream);
         _audio_combobox->setCurrentIndex(init_data.audio_stream);
+        _subtitles_combobox->setCurrentIndex(init_data.subtitles_stream);
         // Disable unsupported input modes
         for (int i = 0; i < _input_combobox->count(); i++)
         {
@@ -474,6 +502,11 @@ int in_out_widget::get_video_stream()
 int in_out_widget::get_audio_stream()
 {
     return _audio_combobox->currentIndex();
+}
+
+int in_out_widget::get_subtitles_stream()
+{
+    return _subtitles_combobox->currentIndex();
 }
 
 void in_out_widget::get_stereo_layout(video_frame::stereo_layout_t &stereo_layout, bool &stereo_layout_swap)
@@ -633,6 +666,12 @@ void in_out_widget::receive_notification(const notification &note)
         s11n::load(current, stream);
         _lock = true;
         _audio_combobox->setCurrentIndex(stream);
+        _lock = false;
+        break;
+    case notification::subtitles_stream:
+        s11n::load(current, stream);
+        _lock = true;
+        _subtitles_combobox->setCurrentIndex(stream);
         _lock = false;
         break;
     case notification::stereo_mode_swap:
@@ -1587,6 +1626,13 @@ void main_window::receive_notification(const notification &note)
         s11n::load(current, _init_data.audio_stream);
         _settings->beginGroup("Video/" + current_file_hash());
         _settings->setValue("audio-stream", QVariant(_init_data.audio_stream).toString());
+        _settings->endGroup();
+        break;
+        
+    case notification::subtitles_stream:
+        s11n::load(current, _init_data.subtitles_stream);
+        _settings->beginGroup("Video/" + current_file_hash());
+        _settings->setValue("subtitles-stream", QVariant(_init_data.subtitles_stream).toString());
         _settings->endGroup();
         break;
 

@@ -48,7 +48,7 @@ public:
    };
    
    format_t format;      // Subtitles format
-   char lang[4];         // Subtitles language
+   std::string lang;     // Subtitles language
    
    typedef std::vector<subtitle> subtitles;
    subtitles  data;

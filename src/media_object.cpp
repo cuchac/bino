@@ -570,7 +570,7 @@ void media_object::set_subtitles_list_template(int index)
     AVCodecContext *subtitles_codec_ctx = _ffmpeg->subtitles_codec_ctxs[index];
     subtitles_list &subtitles_blob_template = _ffmpeg->subtitles_list_templates[index];
     
-    strncpy(subtitles_blob_template.lang, subtitles_stream->language, 4);
+    subtitles_blob_template.lang = subtitles_stream->language;
     
     subtitles_list::format_t format;
     switch(subtitles_stream->codec->codec_id)

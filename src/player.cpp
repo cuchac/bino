@@ -42,6 +42,7 @@ player_init_data::player_init_data() :
     urls(),
     video_stream(0),
     audio_stream(0),
+    subtitles_stream(0),
     benchmark(false),
     fullscreen(false),
     center(false),
@@ -65,6 +66,7 @@ void player_init_data::save(std::ostream &os) const
     s11n::save(os, urls);
     s11n::save(os, video_stream);
     s11n::save(os, audio_stream);
+    s11n::save(os, subtitles_stream);
     s11n::save(os, benchmark);
     s11n::save(os, fullscreen);
     s11n::save(os, center);
@@ -85,6 +87,7 @@ void player_init_data::load(std::istream &is)
     s11n::load(is, urls);
     s11n::load(is, video_stream);
     s11n::load(is, audio_stream);
+    s11n::load(is, subtitles_stream);
     s11n::load(is, benchmark);
     s11n::load(is, fullscreen);
     s11n::load(is, center);
@@ -732,6 +735,38 @@ void player::receive_cmd(const command &cmd)
             {
                 _media_input->select_audio_stream(newstream);
                 notify(notification::audio_stream, oldstream, newstream);
+                _seek_request = -1;     // Get position right
+            }
+        }
+        break;
+    case command::cycle_subtitles_stream:
+        if (_media_input->subtitles_streams() > 1)
+        {
+            int oldstream = _media_input->selected_subtitles_stream();
+            int newstream = oldstream + 1;
+            if (newstream >= _media_input->subtitles_streams())
+            {
+                newstream = 0;
+            }
+            _media_input->select_subtitles_stream(newstream);
+            notify(notification::subtitles_stream, oldstream, newstream);
+            _seek_request = -1;         // Get position right
+        }
+        break;
+    case command::set_subtitles_stream:
+        if (_media_input->subtitles_streams() > 1)
+        {
+            int oldstream = _media_input->selected_subtitles_stream();
+            int newstream;
+            s11n::load(p, newstream);
+            if (newstream < 0 || newstream >= _media_input->subtitles_streams())
+            {
+                newstream = 0;
+            }
+            if (newstream != oldstream)
+            {
+                _media_input->select_subtitles_stream(newstream);
+                notify(notification::subtitles_stream, oldstream, newstream);
                 _seek_request = -1;     // Get position right
             }
         }

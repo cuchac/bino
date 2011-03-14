@@ -76,6 +76,7 @@ private:
     const player_qt_internal *_player;
     QComboBox *_video_combobox;
     QComboBox *_audio_combobox;
+    QComboBox *_subtitles_combobox;
     QComboBox *_input_combobox;
     QComboBox *_output_combobox;
     QCheckBox *_swap_checkbox;
@@ -87,6 +88,7 @@ private:
 private slots:
     void video_changed();
     void audio_changed();
+    void subtitles_changed();
     void input_changed();
     void output_changed();
     void swap_changed();
@@ -99,6 +101,7 @@ public:
 
     int get_video_stream();
     int get_audio_stream();
+    int get_subtitles_stream();
     void get_stereo_layout(video_frame::stereo_layout_t &stereo_layout, bool &stereo_layout_swap);
     void get_stereo_mode(parameters::stereo_mode_t &stereo_mode, bool &stereo_mode_swap);
 
