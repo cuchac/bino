@@ -601,7 +601,7 @@ void video_output::set_parameters(const parameters &params)
         {
             if(subtitles_font)
                 delete subtitles_font;
-            subtitles_font = new FTPixmapFont(params.subtitles_font.c_str());
+            subtitles_font = new FTBitmapFont(params.subtitles_font.c_str());
             if(subtitles_font->Error())
             {
                 msg::wrn("Unable to load subtitles font: %s", params.subtitles_font.c_str());
