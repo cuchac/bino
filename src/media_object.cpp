@@ -1107,7 +1107,8 @@ void read_thread::run()
                     AVSubtitle subtitle;
                     int ptr;
                     avcodec_decode_subtitle2(_ffmpeg->subtitles_codec_ctxs[i], &subtitle, &ptr, &packet);
-                    _ffmpeg->subtitles_list_templates[i].data.push_back(subtitles_list::extract_text_from_ssa(subtitle.rects[0]->ass));
+                    if (subtitle.num_rects)
+                        _ffmpeg->subtitles_list_templates[i].data.push_back(subtitles_list::extract_text_from_ssa(subtitle.rects[0]->ass));
                     storage = &_ffmpeg->subtitles_list_templates[i].data.back();
                     for(unsigned int j = 1; j < subtitle.num_rects; j++)
                         storage->text += std::string("\n") + subtitles_list::extract_text_from_ssa(subtitle.rects[j]->ass);
