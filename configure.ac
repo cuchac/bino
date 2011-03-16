@@ -143,23 +143,6 @@ fi
 AC_DEFINE_UNQUOTED([HAVE_LIBEQUALIZER], [$HAVE_LIBEQUALIZER], [Have Equalizer?])
 AM_CONDITIONAL([HAVE_LIBEQUALIZER], [test "$HAVE_LIBEQUALIZER" = "1"])
 
-dnl FTGL
-AC_ARG_WITH([ftgl],
-    [AS_HELP_STRING([--with-ftgl], [Enable subtitles via FTGL (disabled by default)])],
-    [if test "$withval" = "yes"; then ftgl="yes"; else ftgl="no "; fi], [ftgl="no"])
-if test "$ftgl" = "yes"; then
-    PKG_CHECK_MODULES([libftgl], [ftgl >= 0.0], [HAVE_LIBFTGL=1], [HAVE_LIBFTGL=0])
-    if test "$HAVE_LIBFTGL" != "1"; then
-        AC_MSG_WARN([library libftgl not found:])
-        AC_MSG_WARN([$libftgl_PKG_ERRORS])
-        AC_MSG_WARN([libftgl is provided by FTGL])
-    fi
-else
-    HAVE_LIBFTGL=0
-fi
-AC_DEFINE_UNQUOTED([HAVE_LIBFTGL], [$HAVE_LIBFTGL], [Have FTGL?])
-AM_CONDITIONAL([HAVE_LIBFTGL], [test "$HAVE_LIBFTGL" = "1"])
-
 dnl Check if all libraries were found
 if test "$HAVE_LIBAVFORMAT" != "1" \
     -o "$HAVE_LIBSWSCALE" != "1" \

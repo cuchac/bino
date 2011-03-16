@@ -82,11 +82,6 @@ AM_CPPFLAGS += $(libglew_CFLAGS)
 bino_LDADD += $(libglew_LIBS)
 endif
 
-if HAVE_LIBFTGL
-AM_CPPFLAGS += $(libftgl_CFLAGS)
-bino_LDADD += $(libftgl_LIBS)
-endif
-
 if W32
 bino_SOURCES += logo/bino_logo.ico
 .ico.o:

@@ -31,9 +31,6 @@
 #include "media_data.h"
 #include "controller.h"
 
-class FTBitmapFont;
-class FTSimpleLayout;
-
 class video_output : public controller
 {
 private:
@@ -105,9 +102,6 @@ protected:
     {
         display_current_frame(false, -1.0f, -1.0f, 2.0f, 2.0f, _viewport);
     }
-
-    FTBitmapFont *subtitles_font;
-    FTSimpleLayout *subtitles_layout;
 
 public:
     /* Constructor, Destructor */
