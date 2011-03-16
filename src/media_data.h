@@ -44,7 +44,11 @@ public:
       int64_t start_time;          // Presentation timestamp
       int64_t end_time;
       
-      subtitle(const char * t = ""):text(t),start_time(0),end_time(0){};
+      const void * image_data;           // Buffer holding image data
+      int image_width;             // Width of subtitle image
+      int image_height;            // Height of subtitle image      
+      
+      subtitle(const char * t = ""):text(t),start_time(0),end_time(0),image_data(NULL),image_height(0),image_width(0){};
    };
    
    format_t format;      // Subtitles format

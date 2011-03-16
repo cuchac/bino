@@ -599,6 +599,10 @@ video_frame media_input::finish_video_frame_read()
     {
         frame.subtitle = _subtitles_list->get_current_subtitle(frame.presentation_time);
     }
+    else
+    {
+        frame.subtitle = NULL;
+    }
         
     _have_active_video_read = false;
     return frame;

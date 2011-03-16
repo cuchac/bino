@@ -102,6 +102,8 @@ protected:
     {
         display_current_frame(false, -1.0f, -1.0f, 2.0f, 2.0f, _viewport);
     }
+    
+    virtual bool render_subtitle(const video_frame &frame, parameters *params) = 0;
 
 public:
     /* Constructor, Destructor */

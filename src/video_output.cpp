@@ -367,6 +367,14 @@ void video_output::prepare_next_frame(const video_frame &frame)
             glBindTexture(GL_TEXTURE_2D, tex);
             glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, w, h, format, type, NULL);
             glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+            
+            if(frame.subtitle)
+            {
+                if (render_subtitle(frame, &_params))
+                {
+                    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, frame.height-frame.subtitle->image_height, frame.subtitle->image_width, frame.subtitle->image_height, GL_BGRA, GL_UNSIGNED_INT_8_8_8_8_REV, frame.subtitle->image_data);
+                }
+            }
         }
     }
     assert(xgl::CheckError(HERE));

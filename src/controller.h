@@ -76,8 +76,8 @@ public:
         adjust_ghostbust,               // float (relative adjustment)
         set_ghostbust,                  // float (absolute value)
         set_subtitles_font,             // filename, string
-        set_subtitles_size,        // int
-        set_subtitles_color        // RGB color, int
+        set_subtitles_size,             // int
+        set_subtitles_color             // RGB color, int
     };
     
     type type;
