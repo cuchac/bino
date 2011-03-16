@@ -88,6 +88,10 @@ private:
     QGLFormat _format;
     bool _fullscreen;
     bool _playing;
+    
+    QImage * subtitle_buffer;
+    QPainter * subtitle_painter;
+    std::string subtitle_buffer_string;
 
     void create_widget();
     void mouse_set_pos(float dest);
@@ -98,6 +102,7 @@ protected:
     virtual void recreate_context(bool stereo);
     virtual void trigger_update();
     virtual void trigger_resize(int w, int h);
+    virtual bool render_subtitle(const video_frame &frame, parameters *params);
 
 public:
     /* Constructor, Destructor */
