@@ -591,7 +591,7 @@ void parameters::set_defaults()
     }
     if (subtitles_font.empty())
     {
-       subtitles_font = "Arial.ttf";
+       subtitles_font = "";
     }
 }
 

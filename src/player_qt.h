@@ -232,17 +232,15 @@ class subtitles_dialog : public QDialog, public controller
    
 private:
    bool _lock;
-   QLineEdit *_font_label;
+   QLabel *_font_label;
    QPushButton * _font_button;
    QColorDialog * _color_dialog;
-   QSpinBox * _font_size_spinbox;
    QLabel * _color_box;
    QPushButton * _color_button;
    
 private slots:
    void font_button_pushed();
    void color_button_pushed();
-   void font_size_changed(int value);
    
 private:
    void set_font_color(int rgb);

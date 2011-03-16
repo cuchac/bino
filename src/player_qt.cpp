@@ -1289,16 +1289,10 @@ _lock(false)
    setWindowTitle("Subtitles Settings");
    
    QLabel *font_label = new QLabel("Font:");
-   _font_label = new QLineEdit(params.subtitles_font.c_str());
-   _font_button = new QPushButton("Browse...");
+   _font_label = new QLabel(params.subtitles_font.c_str());
+   _font_button = new QPushButton("Set font...");
    connect(_font_button, SIGNAL(pressed()), this, SLOT(font_button_pushed()));
-   
-   QLabel *font_size_label = new QLabel("Font Size:");
-   _font_size_spinbox = new QSpinBox();
-   _font_size_spinbox->setRange(1, 150);
-   _font_size_spinbox->setValue(params.subtitles_size);
-   connect(_font_size_spinbox, SIGNAL(valueChanged(int)), this, SLOT(font_size_changed(int)));
-   
+  
    QLabel *color_label = new QLabel("Color:");
    _color_box = new QLabel("");
    _color_box->setAutoFillBackground(true);
@@ -1316,26 +1310,27 @@ _lock(false)
    layout->addWidget(font_label, 0, 0);
    layout->addWidget(_font_label, 0, 1);
    layout->addWidget(_font_button, 0, 2);
-   layout->addWidget(font_size_label, 1, 0);
-   layout->addWidget(_font_size_spinbox, 1, 1);
-   layout->addWidget(color_label, 2, 0);
-   layout->addWidget(_color_box, 2, 1);
-   layout->addWidget(_color_button, 2, 2);
+   layout->addWidget(color_label, 1, 0);
+   layout->addWidget(_color_box, 1, 1);
+   layout->addWidget(_color_button, 1, 2);
 
    setLayout(layout);
 }
 
 void subtitles_dialog::font_button_pushed()
 {
-   std::string file = QFileDialog::getOpenFileName(this, "Open Font", "", "Font Files (*.ttf)").toStdString();
-   if(!file.empty())
+   QFontDialog dialog(this);
+   QFont font;
+   font.fromString(_font_label->text());
+   dialog.setCurrentFont(font);
+   if (dialog.exec())
    {
-      _font_label->setText(file.c_str());
+       _font_label->setText(dialog.currentFont().toString());
       
-      if (!_lock)
-      {
-         send_cmd(command::set_subtitles_font, file.c_str());
-      }
+        if (!_lock)
+        {
+            send_cmd(command::set_subtitles_font, dialog.currentFont().toString().toStdString().c_str());
+        }
    }  
 }
 
@@ -1349,14 +1344,6 @@ void subtitles_dialog::color_button_pushed()
       {
          send_cmd(command::set_subtitles_color, static_cast<int>(_color_dialog->currentColor().rgb()));
       }
-   }
-}
-
-void subtitles_dialog::font_size_changed(int value)
-{
-   if (!_lock)
-   {
-      send_cmd(command::set_subtitles_size, value);
    }
 }
 
@@ -1377,10 +1364,6 @@ void subtitles_dialog::receive_notification(const notification &note)
    {
       case notification::subtitles_font:
          _font_label->setText(note.current.c_str());
-         break;
-      case notification::subtitles_size:
-         s11n::load(current, value);
-         _font_size_spinbox->setValue(value);
          break;
       case notification::subtitles_color:
          s11n::load(current, value);
@@ -1442,7 +1425,7 @@ main_window::main_window(QSettings *settings, const player_init_data &init_data)
     }
     if (_init_data.params.subtitles_font.empty())
     {
-       _init_data.params.subtitles_font = _settings->value("subtitles_font", QString("Arial.ttf")).toString().toStdString();
+       _init_data.params.subtitles_font = _settings->value("subtitles_font", QFont().toString()).toString().toStdString();
     }
     _settings->endGroup();
     _init_data.params.set_defaults();
