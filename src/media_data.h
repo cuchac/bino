@@ -248,7 +248,7 @@ public:
     
     int subtitles_color;                // RGB color of subtitles
     std::string subtitles_font;         // Filepath of font for rendering
-    int subtitles_size;            // Size of subtitles
+    std::string subtitles_encoding;     // Encoding of subtitle string
 
     // Constructor
     parameters();

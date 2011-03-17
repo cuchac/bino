@@ -37,6 +37,7 @@ static GLEWContext* glewGetContext() { return &_glewContext; }
 #include <QIcon>
 #include <QMessageBox>
 #include <QPalette>
+#include <QTextCodec>
 
 #include "exc.h"
 #include "msg.h"
@@ -243,7 +244,8 @@ video_output_qt::video_output_qt(bool benchmark, video_container_widget *contain
     _fullscreen(false),
     _playing(false),
     subtitle_buffer(NULL),
-    subtitle_painter(NULL)
+    subtitle_painter(NULL),
+    subtitle_encoder(NULL)
 {
     _qt_app_owner = init_qt();
     if (!_container_widget)
@@ -399,10 +401,10 @@ void video_output_qt::trigger_resize(int w, int h)
 
 bool video_output_qt::render_subtitle(const video_frame& frame, parameters* params)
 {
-    if(!subtitle_buffer || frame.width != subtitle_buffer->width())
+    if (!subtitle_buffer || frame.width != subtitle_buffer->width())
     {
         // reinit subtitles
-        if(subtitle_painter)
+        if (subtitle_painter)
             delete subtitle_painter;
         /*if(subtitle_buffer) // subtitle_painter will destroy buffer
             delete subtitle_buffer;*/
@@ -415,10 +417,19 @@ bool video_output_qt::render_subtitle(const video_frame& frame, parameters* para
         subtitle_painter->setPen(QColor(QRgb(params->subtitles_color)));
     }
     
-    if(frame.subtitle->text != subtitle_buffer_string)
+    if (!subtitle_encoder)
+        subtitle_encoder = QTextCodec::codecForName(params->subtitles_encoding.c_str());
+    
+    if (frame.subtitle->text != subtitle_buffer_string)
     {
+        QString text = frame.subtitle->text.c_str();
+        if(subtitle_encoder)
+            text = subtitle_encoder->toUnicode(QByteArray(frame.subtitle->text.c_str()));
+        text.replace("\\N", "\n");
+        
         subtitle_buffer->fill(0x40404040);
-        subtitle_painter->drawText(QRect(0, 0, frame.width, 30), Qt::AlignBottom | Qt::AlignHCenter | Qt::TextWordWrap, frame.subtitle->text.c_str());
+        subtitle_painter->drawText(QRect(0, 0, frame.width, 30), Qt::AlignBottom | Qt::AlignHCenter | Qt::TextWordWrap, text.trimmed());
+        subtitle_buffer_string = frame.subtitle->text;
     }
     
     frame.subtitle->image_data = (uchar*)subtitle_buffer->bits();
@@ -604,6 +615,10 @@ void video_output_qt::receive_notification(const notification &note)
             subtitle_painter->setPen(QColor(QRgb(color)));
             break;
         }
+        
+    case notification::subtitles_encoding:       
+        subtitle_encoder = QTextCodec::codecForName(note.current.c_str());
+        break;
     }
     /* More is currently not implemented.
      * In the future, an on-screen display might show hints about what happened. */

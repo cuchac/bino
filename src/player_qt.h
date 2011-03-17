@@ -237,13 +237,18 @@ private:
    QColorDialog * _color_dialog;
    QLabel * _color_box;
    QPushButton * _color_button;
+   QComboBox * _encoding_combo;
+   
+   QList <QTextCodec* > codecs;
    
 private slots:
    void font_button_pushed();
    void color_button_pushed();
+   void encoding_changed(QString encoding);
    
 private:
    void set_font_color(int rgb);
+   void find_codecs();
    
 public:
    subtitles_dialog(const parameters &params, QWidget *parent);

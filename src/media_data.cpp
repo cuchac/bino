@@ -537,8 +537,8 @@ parameters::parameters() :
     brightness(std::numeric_limits<float>::quiet_NaN()),
     hue(std::numeric_limits<float>::quiet_NaN()),
     saturation(std::numeric_limits<float>::quiet_NaN()),
-    subtitles_color(0x00FFFFFF),
-    subtitles_size(12),
+    subtitles_color(-1),
+    subtitles_encoding(""),
     subtitles_font("")
 {
 }
@@ -585,9 +585,9 @@ void parameters::set_defaults()
     {
        subtitles_color = 0x00FFFFFF;
     }
-    if (subtitles_size < 1 || subtitles_size > 150)
+    if (subtitles_encoding.empty())
     {
-       subtitles_size = 12;
+        subtitles_encoding = "UTF-8";
     }
     if (subtitles_font.empty())
     {
@@ -812,7 +812,7 @@ void parameters::save(std::ostream &os) const
     s11n::save(os, saturation);
     s11n::save(os, subtitles_color);
     s11n::save(os, subtitles_font);
-    s11n::save(os, subtitles_size);
+    s11n::save(os, subtitles_encoding);
 }
 
 void parameters::load(std::istream &is)
@@ -832,5 +832,5 @@ void parameters::load(std::istream &is)
     s11n::load(is, saturation);
     s11n::load(is, subtitles_color);
     s11n::load(is, subtitles_font);
-    s11n::load(is, subtitles_size);
+    s11n::load(is, subtitles_encoding);
 }

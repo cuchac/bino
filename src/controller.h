@@ -76,7 +76,7 @@ public:
         adjust_ghostbust,               // float (relative adjustment)
         set_ghostbust,                  // float (absolute value)
         set_subtitles_font,             // filename, string
-        set_subtitles_size,             // int
+        set_subtitles_encoding,         // string
         set_subtitles_color             // RGB color, int
     };
     
@@ -136,8 +136,8 @@ public:
         crosstalk,              // 3 floats
         ghostbust,              // float
         subtitles_font,         // string
-        subtitles_size,    // int
-        subtitles_color,   // int
+        subtitles_encoding,     // string
+        subtitles_color,        // int
         
     };
     

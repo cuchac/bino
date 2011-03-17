@@ -92,6 +92,7 @@ private:
     QImage * subtitle_buffer;
     QPainter * subtitle_painter;
     std::string subtitle_buffer_string;
+    QTextCodec * subtitle_encoder;
 
     void create_widget();
     void mouse_set_pos(float dest);
