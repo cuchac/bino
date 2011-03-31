@@ -802,6 +802,38 @@ void player::receive_cmd(const command &cmd)
             }
         }
         break;
+    case command::cycle_subtitles_stream:
+        if (_media_input->subtitle_streams() > 1)
+        {
+            int oldstream = _media_input->selected_subtitle_stream();
+            int newstream = oldstream + 1;
+            if (newstream >= _media_input->subtitle_streams())
+            {
+                newstream = 0;
+            }
+            _media_input->select_subtitle_stream(newstream);
+            notify(notification::subtitles_stream, oldstream, newstream);
+            _seek_request = -1;         // Get position right
+        }
+        break;
+    case command::set_subtitles_stream:
+        if (_media_input->subtitle_streams() > 1)
+        {
+            int oldstream = _media_input->selected_subtitle_stream();
+            int newstream;
+            s11n::load(p, newstream);
+            if (newstream < 0 || newstream >= _media_input->subtitle_streams())
+            {
+                newstream = 0;
+            }
+            if (newstream != oldstream)
+            {
+                _media_input->select_subtitle_stream(newstream);
+                notify(notification::subtitles_stream, oldstream, newstream);
+                _seek_request = -1;     // Get position right
+            }
+        }
+        break;
     case command::set_stereo_layout:
         {
             int stereo_layout;
@@ -959,6 +991,33 @@ void player::receive_cmd(const command &cmd)
         parameters_changed = true;
         notify(notification::ghostbust, oldval, _params.ghostbust);
         break;
+    case command::set_subtitles_font:
+        {
+            std::string old_file;
+            old_file = _params.subtitles_font;
+            _params.subtitles_font = cmd.param;
+            parameters_changed = true;
+            notify(notification::subtitles_font, old_file, _params.subtitles_font);
+            break;
+        }
+    case command::set_subtitles_encoding:
+        {
+            std::string old_val = _params.subtitles_encoding;
+            _params.subtitles_encoding = cmd.param;
+            parameters_changed = true;
+            notify(notification::subtitles_encoding, old_val, _params.subtitles_encoding);
+            break;
+        }
+    case command::set_subtitles_color:
+        {
+            int val, old_val;
+            s11n::load(p, val);
+            old_val = _params.subtitles_color;
+            _params.subtitles_color = val & 0x00FFFFFF;
+            parameters_changed = true;
+            notify(notification::subtitles_color, old_val, _params.subtitles_color);
+            break;
+        }
     }
 
     if (parameters_changed && _video_output)

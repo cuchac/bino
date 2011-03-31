@@ -47,6 +47,10 @@
 #include <QStandardItemModel>
 #include <QTextBrowser>
 #include <QTabWidget>
+#include <QFontDialog>
+#include <QFileDialog>
+#include <QColorDialog>
+#include <QTextCodec>
 
 #include "player_qt.h"
 #include "qt_app.h"
@@ -163,6 +167,17 @@ in_out_widget::in_out_widget(QSettings *settings, const player_qt_internal *play
     connect(_input_combobox, SIGNAL(currentIndexChanged(int)), this, SLOT(input_changed()));
     layout1->addWidget(_input_combobox, 0, 1);
     layout1->setColumnStretch(1, 1);
+    
+    QLabel *subtitles_label = new QLabel("Subtitles:");
+    subtitles_label->setToolTip(
+        "<p>Select the subtitles stream.</p>");
+    layout1->addWidget(subtitles_label, 0, 2);
+    _subtitles_combobox = new QComboBox(this);
+    _subtitles_combobox->setToolTip(subtitles_label->toolTip());
+    connect(_subtitles_combobox, SIGNAL(currentIndexChanged(int)), this, SLOT(subtitles_changed()));
+    layout1->addWidget(_subtitles_combobox, 0, 3);
+    layout1->setColumnStretch(1, 1);
+    layout1->setColumnStretch(3, 1);
 
     QGridLayout *layout2 = new QGridLayout;
     QLabel *output_label = new QLabel("Output:");
@@ -216,9 +231,11 @@ in_out_widget::in_out_widget(QSettings *settings, const player_qt_internal *play
     input_label->setMinimumSize(output_label->minimumSizeHint());
     audio_label->setMinimumSize(output_label->minimumSizeHint());
     video_label->setMinimumSize(output_label->minimumSizeHint());
+    subtitles_label->setMinimumSize(output_label->minimumSizeHint());
 
     _video_combobox->setEnabled(false);
     _audio_combobox->setEnabled(false);
+    _subtitles_combobox->setEnabled(false);
     _input_combobox->setEnabled(false);
     _output_combobox->setEnabled(false);
     _swap_checkbox->setEnabled(false);
@@ -357,6 +374,14 @@ void in_out_widget::audio_changed()
     }
 }
 
+void in_out_widget::subtitles_changed()
+{
+    if (!_lock)
+    {
+        send_cmd(command::set_subtitles_stream, _subtitles_combobox->currentIndex());
+    }
+}
+
 void in_out_widget::input_changed()
 {
     video_frame::stereo_layout_t stereo_layout;
@@ -420,11 +445,13 @@ void in_out_widget::update(const player_init_data &init_data, bool have_valid_in
     _lock = true;
     _video_combobox->setEnabled(have_valid_input);
     _audio_combobox->setEnabled(have_valid_input);
+    _subtitles_combobox->setEnabled(have_valid_input);
     _input_combobox->setEnabled(have_valid_input);
     _output_combobox->setEnabled(have_valid_input);
     _swap_checkbox->setEnabled(have_valid_input);
     _video_combobox->clear();
     _audio_combobox->clear();
+    _subtitles_combobox->clear();
     if (have_valid_input)
     {
         for (int i = 0; i < _player->get_media_input().video_streams(); i++)
@@ -435,8 +462,13 @@ void in_out_widget::update(const player_init_data &init_data, bool have_valid_in
         {
             _audio_combobox->addItem(_player->get_media_input().audio_stream_name(i).c_str());
         }
+        for (int i = 0; i < _player->get_media_input().subtitle_streams(); i++)
+        {
+            _subtitles_combobox->addItem(_player->get_media_input().subtitle_stream_name(i).c_str());
+        }
         _video_combobox->setCurrentIndex(init_data.video_stream);
         _audio_combobox->setCurrentIndex(init_data.audio_stream);
+        _subtitles_combobox->setCurrentIndex(init_data.subtitle_stream);
         // Disable unsupported input modes
         for (int i = 0; i < _input_combobox->count(); i++)
         {
@@ -471,6 +503,11 @@ int in_out_widget::get_video_stream()
 int in_out_widget::get_audio_stream()
 {
     return _audio_combobox->currentIndex();
+}
+
+int in_out_widget::get_subtitles_stream()
+{
+    return _subtitles_combobox->currentIndex();
 }
 
 void in_out_widget::get_stereo_layout(video_frame::stereo_layout_t &stereo_layout, bool &stereo_layout_swap)
@@ -630,6 +667,12 @@ void in_out_widget::receive_notification(const notification &note)
         s11n::load(current, stream);
         _lock = true;
         _audio_combobox->setCurrentIndex(stream);
+        _lock = false;
+        break;
+    case notification::subtitles_stream:
+        s11n::load(current, stream);
+        _lock = true;
+        _subtitles_combobox->setCurrentIndex(stream);
         _lock = false;
         break;
     case notification::stereo_mode_swap:
@@ -1239,11 +1282,159 @@ void stereoscopic_dialog::receive_notification(const notification &note)
 }
 
 
+
+subtitles_dialog::subtitles_dialog(const parameters &params, QWidget *parent) : QDialog(parent),
+_lock(false)
+{
+   setModal(false);
+   setWindowTitle("Subtitles Settings");
+   
+   QLabel *font_label = new QLabel("Font:");
+   _font_label = new QLabel(params.subtitles_font.c_str());
+   _font_button = new QPushButton("Set font...");
+   connect(_font_button, SIGNAL(pressed()), this, SLOT(font_button_pushed()));
+  
+   QLabel *color_label = new QLabel("Color:");
+   _color_box = new QLabel("");
+   _color_box->setAutoFillBackground(true);
+   _color_box->setMinimumSize(50, 20);
+   set_font_color(params.subtitles_color);
+   //connect(_color_box, SIGNAL(QLabel), this, SLOT(color_button_pushed()));
+   
+   _color_button = new QPushButton("Set color...");
+   connect(_color_button, SIGNAL(pressed()), this, SLOT(color_button_pushed()));
+   
+   _color_dialog = new QColorDialog();
+   _color_dialog->setCurrentColor(QColor(QRgb(params.subtitles_color)));
+   
+   QLabel *encoding_label = new QLabel("Encoding:");
+   _encoding_combo = new QComboBox();
+   encoding_label->setBuddy(_encoding_combo);
+   find_codecs();
+   foreach (QTextCodec *codec, codecs)
+       _encoding_combo->addItem(codec->name(), codec->mibEnum());
+   _encoding_combo->setCurrentIndex(_encoding_combo->findText(params.subtitles_encoding.c_str()));
+   connect(_encoding_combo, SIGNAL(currentIndexChanged(QString)), this, SLOT(encoding_changed(QString)));
+   
+   QGridLayout *layout = new QGridLayout;
+   layout->addWidget(font_label, 0, 0);
+   layout->addWidget(_font_label, 0, 1);
+   layout->addWidget(_font_button, 0, 2);
+   layout->addWidget(color_label, 1, 0);
+   layout->addWidget(_color_box, 1, 1);
+   layout->addWidget(_color_button, 1, 2);
+   layout->addWidget(encoding_label, 2, 0);
+   layout->addWidget(_encoding_combo, 2, 1);
+
+   setLayout(layout);
+}
+
+void subtitles_dialog::font_button_pushed()
+{
+   QFontDialog dialog(this);
+   QFont font;
+   font.fromString(_font_label->text());
+   dialog.setCurrentFont(font);
+   if (dialog.exec())
+   {
+       _font_label->setText(dialog.currentFont().toString());
+      
+        if (!_lock)
+        {
+            send_cmd(command::set_subtitles_font, dialog.currentFont().toString().toStdString().c_str());
+        }
+   }  
+}
+
+void subtitles_dialog::color_button_pushed()
+{
+   if(_color_dialog->exec())
+   {
+      set_font_color(_color_dialog->currentColor().rgb());
+      
+      if (!_lock)
+      {
+         send_cmd(command::set_subtitles_color, static_cast<int>(_color_dialog->currentColor().rgb()));
+      }
+   }
+}
+
+void subtitles_dialog::encoding_changed(QString encoding)
+{
+    if (!_lock)
+    {
+        send_cmd(command::set_subtitles_encoding, encoding.toStdString());
+    }
+}
+
+
+void subtitles_dialog::set_font_color(int rgb)
+{
+   QPalette palette = _color_box->palette();
+   palette.setColor(QPalette::Window, QColor(QRgb(rgb)));
+   _color_box->setPalette(palette);
+}
+
+void subtitles_dialog::find_codecs()
+{
+    QMap<QString, QTextCodec *> codecMap;
+    QRegExp iso8859RegExp("ISO[- ]8859-([0-9]+).*");
+    
+    foreach (int mib, QTextCodec::availableMibs()) {
+        QTextCodec *codec = QTextCodec::codecForMib(mib);
+        
+        QString sortKey = codec->name().toUpper();
+        int rank;
+        
+        if (sortKey.startsWith("UTF-8")) {
+            rank = 1;
+        } else if (sortKey.startsWith("UTF-16")) {
+            rank = 2;
+        } else if (iso8859RegExp.exactMatch(sortKey)) {
+            if (iso8859RegExp.cap(1).size() == 1)
+                rank = 3;
+            else
+                rank = 4;
+        } else {
+            rank = 5;
+        }
+        sortKey.prepend(QChar('0' + rank));
+        
+        codecMap.insert(sortKey, codec);
+    }
+    codecs = codecMap.values();
+}
+
+void subtitles_dialog::receive_notification(const notification &note)
+{
+   std::istringstream current(note.current);
+   int value;
+   std::string s_value;
+   
+   switch (note.type)
+   {
+      case notification::subtitles_font:
+         _font_label->setText(note.current.c_str());
+         break;
+      case notification::subtitles_color:
+         s11n::load(current, value);
+         _lock = true;
+         set_font_color(value);
+         _lock = false;
+         break;
+      default:
+         /* not handled */
+         break;
+   }
+}
+
+
 main_window::main_window(QSettings *settings, const player_init_data &init_data) :
     _settings(settings),
     _color_dialog(NULL),
     _crosstalk_dialog(NULL),
     _stereoscopic_dialog(NULL),
+    _subtitles_dialog(NULL),
     _player(NULL),
     _init_data(init_data),
     _init_data_template(init_data),
@@ -1282,6 +1473,18 @@ main_window::main_window(QSettings *settings, const player_init_data &init_data)
     if (!(_init_data.params.crosstalk_b >= 0.0f && _init_data.params.crosstalk_b <= 1.0f))
     {
         _init_data.params.crosstalk_b = _settings->value("crosstalk_b", QString("0")).toFloat();
+    }
+    if (_init_data.params.subtitles_font.empty())
+    {
+       _init_data.params.subtitles_font = _settings->value("subtitles_font", QFont().toString()).toString().toStdString();
+    }
+    if (!(_init_data.params.subtitles_color >= 0x0 && _init_data.params.subtitles_color <= 0xFFFFFF))
+    {
+        _init_data.params.subtitles_color = _settings->value("subtitles_color", QVariant(0xFFFFFF)).toInt();
+    }
+    if (_init_data.params.subtitles_encoding.empty())
+    {
+        _init_data.params.subtitles_encoding = _settings->value("subtitles_encoding", "UTF-8").toString().toStdString();
     }
     _settings->endGroup();
     _init_data.params.set_defaults();
@@ -1333,6 +1536,9 @@ main_window::main_window(QSettings *settings, const player_init_data &init_data)
     QAction *preferences_stereoscopic_act = new QAction(tr("Stereoscopic Video Settings..."), this);
     connect(preferences_stereoscopic_act, SIGNAL(triggered()), this, SLOT(preferences_stereoscopic()));
     preferences_menu->addAction(preferences_stereoscopic_act);
+    QAction *preferences_subtitles_act = new QAction(tr("Subtitles Settings..."), this);
+    connect(preferences_subtitles_act, SIGNAL(triggered()), this, SLOT(preferences_subtitles()));
+    preferences_menu->addAction(preferences_subtitles_act);
     QMenu *help_menu = menuBar()->addMenu(tr("&Help"));
     QAction *help_manual_act = new QAction(tr("&Manual..."), this);
     help_manual_act->setShortcut(QKeySequence::HelpContents);
@@ -1464,6 +1670,13 @@ void main_window::receive_notification(const notification &note)
         _settings->setValue("audio-stream", QVariant(_init_data.audio_stream).toString());
         _settings->endGroup();
         break;
+        
+    case notification::subtitles_stream:
+        s11n::load(current, _init_data.subtitle_stream);
+        _settings->beginGroup("Video/" + current_file_hash());
+        _settings->setValue("subtitles-stream", QVariant(_init_data.subtitle_stream).toString());
+        _settings->endGroup();
+        break;
 
     case notification::contrast:
         s11n::load(current, _init_data.params.contrast);
@@ -1503,6 +1716,24 @@ void main_window::receive_notification(const notification &note)
         s11n::load(current, _init_data.params.ghostbust);
         _settings->beginGroup("Video/" + current_file_hash());
         _settings->setValue("ghostbust", QVariant(_init_data.params.ghostbust).toString());
+        _settings->endGroup();
+        break;
+        
+    case notification::subtitles_color:
+        s11n::load(current, _init_data.params.subtitles_color);
+        _settings->beginGroup("Video/" + current_file_hash());
+        _settings->setValue("subtitles_color", QVariant(_init_data.params.subtitles_color).toString());
+        _settings->endGroup();
+        break;
+       
+    case notification::subtitles_font:
+        _init_data.params.subtitles_font = note.current;
+        break;
+       
+    case notification::subtitles_encoding:
+        _init_data.params.subtitles_encoding = note.current;
+        _settings->beginGroup("Video/" + current_file_hash());
+        _settings->setValue("subtitles_encoding", QVariant(_init_data.params.subtitles_encoding.c_str()).toString());
         _settings->endGroup();
         break;
 
@@ -1563,6 +1794,9 @@ void main_window::closeEvent(QCloseEvent *event)
     _settings->setValue("crosstalk_r", QVariant(_init_data.params.crosstalk_r).toString());
     _settings->setValue("crosstalk_g", QVariant(_init_data.params.crosstalk_g).toString());
     _settings->setValue("crosstalk_b", QVariant(_init_data.params.crosstalk_b).toString());
+    _settings->setValue("subtitles_font", QVariant(_init_data.params.subtitles_font.c_str()).toString());
+    _settings->setValue("subtitles_encoding", QVariant(_init_data.params.subtitles_encoding.c_str()).toString());
+    _settings->setValue("subtitles_color", QVariant(_init_data.params.subtitles_color).toString());
     _settings->endGroup();
     event->accept();
 }
@@ -1647,6 +1881,9 @@ void main_window::open(QStringList filenames)
         _init_data.audio_stream = std::max(0, std::min(_init_data.audio_stream, _player->get_media_input().audio_streams() - 1));
         _init_data.params.parallax = QVariant(_settings->value("parallax", QVariant(_init_data.params.parallax)).toString()).toFloat();
         _init_data.params.ghostbust = QVariant(_settings->value("ghostbust", QVariant(_init_data.params.ghostbust)).toString()).toFloat();
+        _init_data.params.subtitles_font = QVariant(_settings->value("subtitles_font", QVariant(_init_data.params.subtitles_font.c_str()))).toString().toStdString();
+        _init_data.params.subtitles_color = QVariant(_settings->value("subtitles_color", QVariant(_init_data.params.subtitles_color)).toString()).toInt();
+        _init_data.params.subtitles_encoding = QVariant(_settings->value("subtitles_size", QVariant(_init_data.params.subtitles_encoding.c_str()))).toString().toStdString();
         // Get stereo mode for this video
         _settings->endGroup();
         QString mode_fallback = QString(parameters::stereo_mode_to_string(
@@ -1748,6 +1985,17 @@ void main_window::preferences_stereoscopic()
     _stereoscopic_dialog->show();
     _stereoscopic_dialog->raise();
     _stereoscopic_dialog->activateWindow();
+}
+
+void main_window::preferences_subtitles()
+{
+   if (!_subtitles_dialog)
+   {
+      _subtitles_dialog = new subtitles_dialog(_init_data.params, this);
+   }
+   _subtitles_dialog->show();
+   _subtitles_dialog->raise();
+   _subtitles_dialog->activateWindow();
 }
 
 void main_window::help_manual()

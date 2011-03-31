@@ -37,6 +37,7 @@ static GLEWContext* glewGetContext() { return &_glewContext; }
 #include <QIcon>
 #include <QMessageBox>
 #include <QPalette>
+#include <QTextCodec>
 
 #include "exc.h"
 #include "msg.h"
@@ -241,7 +242,10 @@ video_output_qt::video_output_qt(bool benchmark, video_container_widget *contain
     _container_is_external(container_widget != NULL),
     _widget(NULL),
     _fullscreen(false),
-    _playing(false)
+    _playing(false),
+    subtitle_buffer(NULL),
+    subtitle_painter(NULL),
+    subtitle_encoder(NULL)
 {
     _qt_app_owner = init_qt();
     if (!_container_widget)
@@ -267,6 +271,10 @@ video_output_qt::~video_output_qt()
     if (!_container_is_external)
     {
         delete _container_widget;
+    }
+    if(subtitle_painter)
+    {
+        delete subtitle_painter;
     }
     if (_qt_app_owner)
     {
@@ -389,6 +397,46 @@ void video_output_qt::trigger_resize(int w, int h)
     _container_widget->set_recommended_size(w, h);
     _container_widget->updateGeometry();
     _container_widget->window()->adjustSize();
+}
+
+bool video_output_qt::render_subtitle(const subtitle_box &subtitle, parameters* params)
+{
+//     if (!subtitle_buffer || frame.width != subtitle_buffer->width())
+//     {
+//         // reinit subtitles
+//         if (subtitle_painter)
+//             delete subtitle_painter;
+//         /*if(subtitle_buffer) // subtitle_painter will destroy buffer
+//             delete subtitle_buffer;*/
+//         
+//         subtitle_buffer = new QImage(frame.width, 30, QImage::Format_ARGB32);
+//         subtitle_painter = new QPainter(subtitle_buffer);
+//         QFont font;
+//         font.fromString(params->subtitles_font.c_str());
+//         subtitle_painter->setFont(font);
+//         subtitle_painter->setPen(QColor(QRgb(params->subtitles_color)));
+//     }
+//     
+//     if (!subtitle_encoder)
+//         subtitle_encoder = QTextCodec::codecForName(params->subtitles_encoding.c_str());
+//     
+//     if (frame.subtitle->text != subtitle_buffer_string)
+//     {
+//         QString text = frame.subtitle->text.c_str();
+//         if(subtitle_encoder)
+//             text = subtitle_encoder->toUnicode(QByteArray(frame.subtitle->text.c_str()));
+//         text.replace("\\N", "\n");
+//         
+//         subtitle_buffer->fill(0x40404040);
+//         subtitle_painter->drawText(QRect(0, 0, frame.width, 30), Qt::AlignBottom | Qt::AlignHCenter | Qt::TextWordWrap, text.trimmed());
+//         subtitle_buffer_string = frame.subtitle->text;
+//     }
+//     
+//     frame.subtitle->image_data = (uchar*)subtitle_buffer->bits();
+//     frame.subtitle->image_height = subtitle_buffer->height();
+//     frame.subtitle->image_width = subtitle_buffer->width();
+//     
+//     return true;
 }
 
 void video_output_qt::mouse_set_pos(float dest)
@@ -542,10 +590,35 @@ void video_output_qt::process_events()
 
 void video_output_qt::receive_notification(const notification &note)
 {
-    if (note.type == notification::play)
+    std::istringstream current(note.current);
+   
+    switch(note.type)
     {
-        std::istringstream current(note.current);
+    case notification::play:
         s11n::load(current, _playing);
+        break;
+        
+    case notification::subtitles_font:
+        if(subtitle_painter)
+        {
+            QFont font = subtitle_painter->font();
+            font.fromString(note.current.c_str());
+            subtitle_painter->setFont(font);
+        }
+        break;
+        
+    case notification::subtitles_color:
+        if(subtitle_painter)
+        {
+            int color;
+            s11n::load(current, color);
+            subtitle_painter->setPen(QColor(QRgb(color)));
+            break;
+        }
+        
+    case notification::subtitles_encoding:       
+        subtitle_encoder = QTextCodec::codecForName(note.current.c_str());
+        break;
     }
     /* More is currently not implemented.
      * In the future, an on-screen display might show hints about what happened. */

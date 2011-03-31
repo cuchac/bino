@@ -80,6 +80,7 @@
  * interpolation, too.
  */
 
+
 video_output::video_output(bool receive_notifications) :
     controller(receive_notifications),
     _initialized(false)
@@ -313,6 +314,7 @@ void video_output::prepare_next_frame(const video_frame &frame, const subtitle_b
         input_init(index, frame);
         _frame[index] = frame;
     }
+    
     int bytes_per_pixel = (frame.layout == video_frame::bgra32 ? 4 : 1);
     GLenum format = (frame.layout == video_frame::bgra32 ? GL_BGRA : GL_LUMINANCE);
     GLenum type = (frame.layout == video_frame::bgra32 ? GL_UNSIGNED_INT_8_8_8_8_REV : GL_UNSIGNED_BYTE);
@@ -363,6 +365,14 @@ void video_output::prepare_next_frame(const video_frame &frame, const subtitle_b
             glBindTexture(GL_TEXTURE_2D, tex);
             glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, w, h, format, type, NULL);
             glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+            
+            if(subtitle.is_valid())
+            {
+                if (render_subtitle(subtitle, &_params))
+                {
+                    //glTexSubImage2D(GL_TEXTURE_2D, 0, 0, frame.height-subtitle.image_height, frame.subtitle->image_width, frame.subtitle->image_height, GL_BGRA, GL_UNSIGNED_INT_8_8_8_8_REV, frame.subtitle->image_data);
+                }
+            }
         }
     }
     assert(xgl::CheckError(HERE));

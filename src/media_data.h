@@ -237,6 +237,10 @@ public:
     float brightness;                   // Brightness adjustment, -1 .. +1
     float hue;                          // Hue adjustment, -1 .. +1
     float saturation;                   // Saturation adjustment, -1 .. +1
+    
+    int subtitles_color;                // RGB color of subtitles
+    std::string subtitles_font;         // Filepath of font for rendering
+    std::string subtitles_encoding;     // Encoding of subtitle string
 
     // Constructor
     parameters();

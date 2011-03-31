@@ -1173,7 +1173,7 @@ void read_thread::reset()
     _eof = false;
 }
 
-video_decode_thread::video_decode_thread(const std::string &url, struct ffmpeg_stuff *ffmpeg, int video_stream) :
+video_decode_thread::video_decode_thread(const std::string& url, ffmpeg_stuff* ffmpeg, int video_stream) :
     _url(url), _ffmpeg(ffmpeg), _video_stream(video_stream), _frame()
 {
 }

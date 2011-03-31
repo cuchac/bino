@@ -609,6 +609,7 @@ video_frame media_input::finish_video_frame_read()
             frame.presentation_time = f.presentation_time;
         }
     }
+        
     _have_active_video_read = false;
     return frame;
 }

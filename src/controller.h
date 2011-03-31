@@ -53,6 +53,8 @@ public:
         set_video_stream,               // int
         cycle_audio_stream,             // no parameters
         set_audio_stream,               // int
+        cycle_subtitles_stream,         // no parameters
+        set_subtitles_stream,           // int
         set_stereo_layout,              // video_frame::stereo_layout, bool
         set_stereo_mode,                // parameters::stereo_mode, bool
         toggle_stereo_mode_swap,        // no parameters
@@ -72,7 +74,10 @@ public:
         set_parallax,                   // float (absolute value)
         set_crosstalk,                  // 3 floats (absolute values)
         adjust_ghostbust,               // float (relative adjustment)
-        set_ghostbust                   // float (absolute value)
+        set_ghostbust,                  // float (absolute value)
+        set_subtitles_font,             // filename, string
+        set_subtitles_encoding,         // string
+        set_subtitles_color             // RGB color, int
     };
     
     type type;
@@ -116,6 +121,7 @@ public:
         pause,                  // bool
         video_stream,           // int
         audio_stream,           // int
+        subtitles_stream,       // int
         stereo_layout,          // video_frame::stereo_layout, bool
         stereo_mode,            // parameters::stereo_mode, bool
         stereo_mode_swap,       // bool
@@ -128,7 +134,11 @@ public:
         pos,                    // float
         parallax,               // float
         crosstalk,              // 3 floats
-        ghostbust               // float
+        ghostbust,              // float
+        subtitles_font,         // string
+        subtitles_encoding,     // string
+        subtitles_color,        // int
+        
     };
     
     type type;

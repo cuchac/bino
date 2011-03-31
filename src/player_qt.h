@@ -33,10 +33,13 @@
 #include <QTimer>
 #include <QSettings>
 #include <QDialog>
+#include <QLineEdit>
+#include <QFontDialog>
 
 #include "controller.h"
 #include "video_output_qt.h"
 #include "player.h"
+#include <QColorDialog>
 
 
 class player_qt_internal : public player, public controller
@@ -73,6 +76,7 @@ private:
     const player_qt_internal *_player;
     QComboBox *_video_combobox;
     QComboBox *_audio_combobox;
+    QComboBox *_subtitles_combobox;
     QComboBox *_input_combobox;
     QComboBox *_output_combobox;
     QCheckBox *_swap_checkbox;
@@ -84,6 +88,7 @@ private:
 private slots:
     void video_changed();
     void audio_changed();
+    void subtitles_changed();
     void input_changed();
     void output_changed();
     void swap_changed();
@@ -96,6 +101,7 @@ public:
 
     int get_video_stream();
     int get_audio_stream();
+    int get_subtitles_stream();
     void get_stereo_layout(video_frame::stereo_layout_t &stereo_layout, bool &stereo_layout_swap);
     void get_stereo_mode(parameters::stereo_mode_t &stereo_mode, bool &stereo_mode_swap);
 
@@ -202,6 +208,7 @@ class stereoscopic_dialog : public QDialog, public controller
 
 private:
     bool _lock;
+    
     QDoubleSpinBox *_p_spinbox;
     QSlider *_p_slider;
     QDoubleSpinBox *_g_spinbox;
@@ -219,6 +226,36 @@ public:
     virtual void receive_notification(const notification &note);
 };
 
+class subtitles_dialog : public QDialog, public controller
+{
+   Q_OBJECT
+   
+private:
+   bool _lock;
+   QLabel *_font_label;
+   QPushButton * _font_button;
+   QColorDialog * _color_dialog;
+   QLabel * _color_box;
+   QPushButton * _color_button;
+   QComboBox * _encoding_combo;
+   
+   QList <QTextCodec* > codecs;
+   
+private slots:
+   void font_button_pushed();
+   void color_button_pushed();
+   void encoding_changed(QString encoding);
+   
+private:
+   void set_font_color(int rgb);
+   void find_codecs();
+   
+public:
+   subtitles_dialog(const parameters &params, QWidget *parent);
+   
+   virtual void receive_notification(const notification &note);
+};
+
 
 class main_window : public QMainWindow, public controller
 {
@@ -232,6 +269,7 @@ private:
     color_dialog *_color_dialog;
     crosstalk_dialog *_crosstalk_dialog;
     stereoscopic_dialog *_stereoscopic_dialog;
+    subtitles_dialog *_subtitles_dialog;
     player_qt_internal *_player;
     QTimer *_timer;
     player_init_data _init_data;
@@ -250,6 +288,7 @@ private slots:
     void preferences_colors();
     void preferences_crosstalk();
     void preferences_stereoscopic();
+    void preferences_subtitles();
     void help_manual();
     void help_website();
     void help_keyboard();
