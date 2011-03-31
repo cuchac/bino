@@ -142,7 +142,7 @@ public:
     virtual void process_events() = 0;
     
     /* Prepare a new frame for display. */
-    void prepare_next_frame(const video_frame &frame);
+    void prepare_next_frame(const video_frame &frame, const subtitle_box &subtitle);
     /* Switch to the next frame (make it the current one) */
     void activate_next_frame();
     /* Set display parameters. */

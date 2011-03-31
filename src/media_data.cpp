@@ -3,6 +3,7 @@
  *
  * Copyright (C) 2010-2011
  * Martin Lambers <marlam@marlam.de>
+ * Joe <joe@wpj.cz>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -424,6 +425,53 @@ int audio_blob::sample_bits() const
         break;
     }
     return bits;
+}
+
+subtitle_box::subtitle_box() :
+    format(text),
+    language(),
+    str(),
+    presentation_start_time(std::numeric_limits<int64_t>::min()),
+    presentation_stop_time(std::numeric_limits<int64_t>::min())
+{
+}
+
+std::string subtitle_box::format_info() const
+{
+    std::string s;
+    if (language.empty())
+    {
+        s += "Unknown ";
+    }
+    else
+    {
+        s += language + " ";
+    }
+    switch (format)
+    {
+    case text:
+        s += "(text format)";
+    }
+    return s;
+}
+
+std::string subtitle_box::format_name() const
+{
+    std::string s;
+    if (language.empty())
+    {
+        s += "unknown-";
+    }
+    else
+    {
+        s += language + "-";
+    }
+    switch (format)
+    {
+    case text:
+        s += "text";
+    }
+    return s;
 }
 
 parameters::parameters() :

@@ -297,7 +297,7 @@ static int next_multiple_of_4(int x)
     return (x / 4 + (x % 4 == 0 ? 0 : 1)) * 4;
 }
 
-void video_output::prepare_next_frame(const video_frame &frame)
+void video_output::prepare_next_frame(const video_frame &frame, const subtitle_box &subtitle)
 {
     assert(xgl::CheckError(HERE));
     int index = (_active_index == 0 ? 1 : 0);
@@ -366,6 +366,10 @@ void video_output::prepare_next_frame(const video_frame &frame)
         }
     }
     assert(xgl::CheckError(HERE));
+    if (subtitle.is_valid())
+    {
+        msg::inf("SUBTITLE: %s", subtitle.str.c_str());
+    }
 }
 
 void video_output::color_init(const video_frame &frame)
