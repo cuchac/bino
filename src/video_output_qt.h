@@ -91,7 +91,6 @@ private:
     
     QFont _subtitle_font;
     QTextCodec * _subtitle_encoder;
-    std::string _subtitle_buffer_string;
 
     void create_widget();
     void mouse_set_pos(float dest);

@@ -381,7 +381,9 @@ void video_output::prepare_next_frame(const video_frame &frame, const subtitle_b
         }
     }
     assert(xgl::CheckError(HERE));
-
+    
+    
+    // Subtitle rendering
     if (subtitle.is_valid())
     {
         msg::inf("SUBTITLE: %s", subtitle.str.c_str());

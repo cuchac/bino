@@ -398,25 +398,22 @@ bool video_output_qt::render_subtitle(const subtitle_box& subtitle, parameters& 
     if (!_subtitle_encoder)
         _subtitle_encoder = QTextCodec::codecForName(params.subtitles_encoding.c_str());
     
-    if (subtitle.str != _subtitle_buffer_string)
-    {
-        QImage image((uchar*)buffer, w, h, QImage::Format_ARGB32);
-        QPainter painter(&image);
-        QFont font;
-        font.fromString(params.subtitles_font.c_str());
-        
-        painter.setFont(font);
-        painter.setPen(QColor(QRgb(params.subtitles_color)));
-        
-        QString text = subtitle.str.c_str();
-        if(_subtitle_encoder)
-            text = _subtitle_encoder->toUnicode(QByteArray(subtitle.str.c_str()));
-        text.replace("\\N", "\n");
-        
-        image.fill(0x80808080);
-        painter.drawText(QRect(0, 0, w, h), Qt::AlignBottom | Qt::AlignHCenter | Qt::TextWordWrap, text.trimmed());
-        _subtitle_buffer_string = subtitle.str;
-    }
+    QImage image((uchar*)buffer, w, h, QImage::Format_ARGB32);
+    QPainter painter(&image);
+    QFont font;
+    font.fromString(params.subtitles_font.c_str());
+    
+    painter.setFont(font);
+    painter.setPen(QColor(QRgb(params.subtitles_color)));
+    
+    QString text = subtitle.str.c_str();
+    if(_subtitle_encoder)
+        text = _subtitle_encoder->toUnicode(QByteArray(subtitle.str.c_str()));
+    text.replace("\\N", "\n");
+
+    image.fill(0x00000000);
+    painter.drawText(QRect(0, 0, w, h), Qt::AlignBottom | Qt::AlignHCenter | Qt::TextWordWrap, text.trimmed());
+
     
     return true;
 }
