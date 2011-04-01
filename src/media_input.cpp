@@ -198,11 +198,11 @@ void media_input::open(const std::vector<std::string> &urls)
         }
         for (int j = 0; j < _media_objects[i].subtitle_streams(); j++)
         {
-            int64_t d = _media_objects[i].subtitle_duration(j);
-            if (d < _duration)
-            {
-                _duration = d;
-            }
+//             int64_t d = _media_objects[i].subtitle_duration(j);
+//             if (d < _duration)
+//             {
+//                 _duration = d;
+//             }
         }
     }
  
