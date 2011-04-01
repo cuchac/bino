@@ -89,6 +89,7 @@ video_output::video_output(bool receive_notifications) :
     _srgb_textures_are_broken = std::getenv("SRGB_TEXTURES_ARE_BROKEN");
 
     _input_pbo = 0;
+    _input_subtitle = 0;
     _active_index = 1;
     for (int i = 0; i < 2; i++)
     {
@@ -181,6 +182,16 @@ void video_output::input_init(int index, const video_frame &frame)
 {
     assert(xgl::CheckError(HERE));
     glGenBuffers(1, &_input_pbo);
+    
+    glGenBuffers(1, &_input_subtitle);
+    glBindTexture(GL_TEXTURE_2D, _input_subtitle);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, frame.width, frame.height,
+                 0, GL_BGRA, GL_UNSIGNED_INT_8_8_8_8_REV, NULL);
+    
     if (frame.layout == video_frame::bgra32)
     {
         for (int i = 0; i < (frame.stereo_layout == video_frame::mono ? 1 : 2); i++)
@@ -264,6 +275,8 @@ void video_output::input_deinit(int index)
     assert(xgl::CheckError(HERE));
     glDeleteBuffers(1, &_input_pbo);
     _input_pbo = 0;
+    glDeleteBuffers(1, &_input_subtitle);
+    _input_subtitle = 0;
     for (int i = 0; i < 2; i++)
     {
         if (_input_yuv_y_tex[index][i] != 0)
@@ -365,20 +378,51 @@ void video_output::prepare_next_frame(const video_frame &frame, const subtitle_b
             glBindTexture(GL_TEXTURE_2D, tex);
             glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, w, h, format, type, NULL);
             glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
-            
-            if(subtitle.is_valid())
-            {
-                if (render_subtitle(subtitle, &_params))
-                {
-                    //glTexSubImage2D(GL_TEXTURE_2D, 0, 0, frame.height-subtitle.image_height, frame.subtitle->image_width, frame.subtitle->image_height, GL_BGRA, GL_UNSIGNED_INT_8_8_8_8_REV, frame.subtitle->image_data);
-                }
-            }
         }
     }
     assert(xgl::CheckError(HERE));
+
     if (subtitle.is_valid())
     {
         msg::inf("SUBTITLE: %s", subtitle.str.c_str());
+
+        int w = frame.width;
+        int h = frame.height;
+        int row_size;
+        row_size = next_multiple_of_4(w * 4);
+        // Get a pixel buffer object buffer for the data
+        glBindBuffer(GL_PIXEL_UNPACK_BUFFER, _input_pbo);
+        glBufferData(GL_PIXEL_UNPACK_BUFFER, row_size * h, NULL, GL_STREAM_DRAW);
+        void *pboptr = glMapBuffer(GL_PIXEL_UNPACK_BUFFER, GL_WRITE_ONLY);
+        if (!pboptr)
+        {
+            msg::err("Cannot create a PBO buffer.");
+            abort();
+        }
+        assert(reinterpret_cast<uintptr_t>(pboptr) % 4 == 0);
+        // Get the subtitle data into the pbo
+        render_subtitle(subtitle, _params, pboptr, w, h);
+        // Upload the data to the texture. We need to set GL_UNPACK_ROW_LENGTH for
+        // misbehaving OpenGL implementations that do not seem to honor
+        // GL_UNPACK_ALIGNMENT correctly in all cases (reported for Mac).
+        glUnmapBuffer(GL_PIXEL_UNPACK_BUFFER);
+        glPixelStorei(GL_UNPACK_ROW_LENGTH, row_size / 4);
+        glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, _input_subtitle);
+        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, w, h, GL_BGRA, GL_UNSIGNED_INT_8_8_8_8_REV, NULL);
+        glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+    }
+    else
+    {
+        // Clear texture
+        glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, _color_fbo);
+        glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT,
+                                  GL_COLOR_ATTACHMENT0_EXT, GL_TEXTURE_2D, _input_subtitle, 0);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glClear(GL_COLOR | GL_DEPTH);
+        
+        glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, 0);
     }
 }
 
@@ -712,9 +756,16 @@ void video_output::display_current_frame(bool mono_right_instead_of_left,
         glActiveTexture(GL_TEXTURE2);
         glBindTexture(GL_TEXTURE_2D, _input_yuv_v_tex[_active_index][left]);
     }
+    
     glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT,
             GL_COLOR_ATTACHMENT0_EXT, GL_TEXTURE_2D, _color_srgb_tex[0], 0);
     draw_quad(-1.0f, +1.0f, +2.0f, -2.0f);
+    
+    // Draw subtitle
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, _input_subtitle);
+    draw_quad(-1.0f, +1.0f, +2.0f, -2.0f);
+    
     // right view: render into _color_srgb_tex[1]
     if (left != right)
     {

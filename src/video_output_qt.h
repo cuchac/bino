@@ -89,10 +89,9 @@ private:
     bool _fullscreen;
     bool _playing;
     
-    QImage * subtitle_buffer;
-    QPainter * subtitle_painter;
-    std::string subtitle_buffer_string;
-    QTextCodec * subtitle_encoder;
+    QFont _subtitle_font;
+    QTextCodec * _subtitle_encoder;
+    std::string _subtitle_buffer_string;
 
     void create_widget();
     void mouse_set_pos(float dest);
@@ -104,7 +103,7 @@ protected:
     virtual void trigger_update();
     virtual void trigger_resize(int w, int h);
     
-    virtual bool render_subtitle(const subtitle_box& subtitle, parameters* params);
+    bool render_subtitle(const subtitle_box& subtitle, parameters& params, void* buffer, int w, int h);
 
 public:
     /* Constructor, Destructor */

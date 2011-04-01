@@ -243,9 +243,7 @@ video_output_qt::video_output_qt(bool benchmark, video_container_widget *contain
     _widget(NULL),
     _fullscreen(false),
     _playing(false),
-    subtitle_buffer(NULL),
-    subtitle_painter(NULL),
-    subtitle_encoder(NULL)
+    _subtitle_encoder(NULL)
 {
     _qt_app_owner = init_qt();
     if (!_container_widget)
@@ -256,7 +254,7 @@ video_output_qt::video_output_qt(bool benchmark, video_container_widget *contain
     // implementations do not support Alpha with a quad-buffer context according to
     // <http://lists.nongnu.org/archive/html/bino-list/2011-03/msg00011.html>.
     // However, we may need to re-enable it for subtitle or OSD support.
-    //_format.setAlpha(true);
+    _format.setAlpha(true);
     _format.setDoubleBuffer(true);
     if (!benchmark)
     {
@@ -271,10 +269,6 @@ video_output_qt::~video_output_qt()
     if (!_container_is_external)
     {
         delete _container_widget;
-    }
-    if(subtitle_painter)
-    {
-        delete subtitle_painter;
     }
     if (_qt_app_owner)
     {
@@ -399,44 +393,32 @@ void video_output_qt::trigger_resize(int w, int h)
     _container_widget->window()->adjustSize();
 }
 
-bool video_output_qt::render_subtitle(const subtitle_box &subtitle, parameters* params)
+bool video_output_qt::render_subtitle(const subtitle_box& subtitle, parameters& params, void* buffer, int w, int h)
 {
-//     if (!subtitle_buffer || frame.width != subtitle_buffer->width())
-//     {
-//         // reinit subtitles
-//         if (subtitle_painter)
-//             delete subtitle_painter;
-//         /*if(subtitle_buffer) // subtitle_painter will destroy buffer
-//             delete subtitle_buffer;*/
-//         
-//         subtitle_buffer = new QImage(frame.width, 30, QImage::Format_ARGB32);
-//         subtitle_painter = new QPainter(subtitle_buffer);
-//         QFont font;
-//         font.fromString(params->subtitles_font.c_str());
-//         subtitle_painter->setFont(font);
-//         subtitle_painter->setPen(QColor(QRgb(params->subtitles_color)));
-//     }
-//     
-//     if (!subtitle_encoder)
-//         subtitle_encoder = QTextCodec::codecForName(params->subtitles_encoding.c_str());
-//     
-//     if (frame.subtitle->text != subtitle_buffer_string)
-//     {
-//         QString text = frame.subtitle->text.c_str();
-//         if(subtitle_encoder)
-//             text = subtitle_encoder->toUnicode(QByteArray(frame.subtitle->text.c_str()));
-//         text.replace("\\N", "\n");
-//         
-//         subtitle_buffer->fill(0x40404040);
-//         subtitle_painter->drawText(QRect(0, 0, frame.width, 30), Qt::AlignBottom | Qt::AlignHCenter | Qt::TextWordWrap, text.trimmed());
-//         subtitle_buffer_string = frame.subtitle->text;
-//     }
-//     
-//     frame.subtitle->image_data = (uchar*)subtitle_buffer->bits();
-//     frame.subtitle->image_height = subtitle_buffer->height();
-//     frame.subtitle->image_width = subtitle_buffer->width();
-//     
-//     return true;
+    if (!_subtitle_encoder)
+        _subtitle_encoder = QTextCodec::codecForName(params.subtitles_encoding.c_str());
+    
+    if (subtitle.str != _subtitle_buffer_string)
+    {
+        QImage image((uchar*)buffer, w, h, QImage::Format_ARGB32);
+        QPainter painter(&image);
+        QFont font;
+        font.fromString(params.subtitles_font.c_str());
+        
+        painter.setFont(font);
+        painter.setPen(QColor(QRgb(params.subtitles_color)));
+        
+        QString text = subtitle.str.c_str();
+        if(_subtitle_encoder)
+            text = _subtitle_encoder->toUnicode(QByteArray(subtitle.str.c_str()));
+        text.replace("\\N", "\n");
+        
+        image.fill(0x80808080);
+        painter.drawText(QRect(0, 0, w, h), Qt::AlignBottom | Qt::AlignHCenter | Qt::TextWordWrap, text.trimmed());
+        _subtitle_buffer_string = subtitle.str;
+    }
+    
+    return true;
 }
 
 void video_output_qt::mouse_set_pos(float dest)
@@ -599,25 +581,21 @@ void video_output_qt::receive_notification(const notification &note)
         break;
         
     case notification::subtitles_font:
-        if(subtitle_painter)
-        {
-            QFont font = subtitle_painter->font();
-            font.fromString(note.current.c_str());
-            subtitle_painter->setFont(font);
-        }
+        _subtitle_font.fromString(note.current.c_str());
         break;
         
     case notification::subtitles_color:
-        if(subtitle_painter)
-        {
-            int color;
-            s11n::load(current, color);
-            subtitle_painter->setPen(QColor(QRgb(color)));
-            break;
-        }
+//         if(_subtitle_painter)
+//         {
+//             int color;
+//             s11n::load(current, color);
+//             _subtitle_painter->setPen(QColor(QRgb(color)));
+//             QPainter p;
+//         }
+        break;
         
     case notification::subtitles_encoding:       
-        subtitle_encoder = QTextCodec::codecForName(note.current.c_str());
+        _subtitle_encoder = QTextCodec::codecForName(note.current.c_str());
         break;
     }
     /* More is currently not implemented.

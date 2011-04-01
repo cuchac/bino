@@ -51,6 +51,7 @@ private:
     GLuint _input_yuv_u_tex[2][2];      // for yuv formats: u component
     GLuint _input_yuv_v_tex[2][2];      // for yuv formats: v component
     GLuint _input_bgra32_tex[2][2];     // for bgra32 format
+    GLuint _input_subtitle;               // for subtitle
     int _input_yuv_chroma_width_divisor[2];     // for yuv formats: chroma subsampling
     int _input_yuv_chroma_height_divisor[2];    // for yuv formats: chroma subsampling
     // Step 2: rendering
@@ -103,7 +104,7 @@ protected:
         display_current_frame(false, -1.0f, -1.0f, 2.0f, 2.0f, _viewport);
     }
     
-    virtual bool render_subtitle(const subtitle_box &subtitle, parameters *params) = 0;
+    virtual bool render_subtitle(const subtitle_box& subtitle, parameters& params, void* buffer, int w, int h) = 0;
 
 public:
     /* Constructor, Destructor */
